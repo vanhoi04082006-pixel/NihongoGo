@@ -129,6 +129,10 @@ async function playSession(page: Page, userId: string, mode: 'LESSON' | 'JUMP') 
     await submit.click()
     await expect(page.getByText('Chính xác!', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: /TIẾP TỤC/ }).click()
+    // Nhịp người thật: server từ chối completeSession nếu tổng thời gian <
+    // 600ms/câu (anti-cheat) — CI runner nhanh hơn sandbox nên phải đảm bảo
+    // tối thiểu ~700ms/câu để phiên hợp lệ.
+    await page.waitForTimeout(700)
   }
   // Màn tổng kết (accuracy 100%) — exact để tránh trùng đoạn mô tả "Độ chính xác 100%…"
   await expect(page.getByText('100%', { exact: true })).toBeVisible({ timeout: 20_000 })
