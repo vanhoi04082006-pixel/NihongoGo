@@ -287,6 +287,25 @@
   animation: shake 0.35s ease-in-out both;
 }
 
+/* Mascot TopBar: bồng bềnh nhẹ nhàng khi rảnh */
+@keyframes mascot-idle {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-2px) rotate(1.5deg); }
+}
+.animate-mascot-idle {
+  animation: mascot-idle 2.8s ease-in-out infinite;
+}
+
+/* Mascot TopBar: lắc đuôi khi hover */
+@keyframes mascot-wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1.05); }
+  25% { transform: rotate(-7deg) scale(1.05); }
+  75% { transform: rotate(7deg) scale(1.05); }
+}
+.animate-mascot-wiggle {
+  animation: mascot-wiggle 0.5s ease-in-out infinite;
+}
+
 /* Bay lên + mờ dần (XP popup, badge nổi) */
 @keyframes float-up {
   0% { transform: translateY(0) scale(1); opacity: 1; }
@@ -340,6 +359,8 @@
   .animate-float-up,
   .animate-heart-lost,
   .animate-bubble-bounce,
+  .animate-mascot-idle,
+  .animate-mascot-wiggle,
   .confetti-piece,
   .quick-link-in {
     animation: none;

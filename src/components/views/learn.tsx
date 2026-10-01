@@ -1,13 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake, Rocket } from 'lucide-react'
+import { Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake, Rocket, CalendarDays, BookMarked } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
 import { useOverview } from '@/components/app/use-overview'
 import { DynamicIcon } from '@/components/shared/icon'
 import { LoadingBlock, ErrorBlock, EmptyBlock, XPBadge, LeagueBadge } from '@/components/shared/widgets'
+import { AudioButton } from '@/components/shared/audio-button'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -72,6 +74,19 @@ interface LearnDTO {
   stats: { lessonsCompleted: number; totalLessons: number; currentLessonId: string | null }
 }
 
+interface DailyWordDTO {
+  date: string
+  term: string
+  reading: string | null
+  romaji: string
+  meaningVi: string
+  pos: string | null
+  exampleJa: string
+  exampleVi: string
+  lessonTitle: string | null
+  lessonId: string | null
+}
+
 /* --------------------------------- View ------------------------------------ */
 
 export function LearnView() {
@@ -84,6 +99,72 @@ export function LearnView() {
   const { data: overview } = useOverview()
   const [practiceMenuFor, setPracticeMenuFor] = useState<NodeDTO | null>(null)
   const [jumpTarget, setJumpTarget] = useState<LessonDTO | null>(null)
+  const [celebrateNodeId, setCelebrateNodeId] = useState<string | null>(null)
+  const celebrateCheckedOnce = useRef(false)
+  const celebrateFlag = useRef<{ nodeId: string; nodeStatus: string | null; firstNodeCompletion: boolean; lessonCompleted: boolean; at: number } | null>(null)
+
+  // Đọc cờ "vừa hoàn thành" từ player → chúc mừng ải vừa vượt/thành thạo.
+  // Lưu ý race: lần đầu effect chạy, data có thể là cache cũ (node.state chưa kịp cập nhật
+  // thành MASTERED) → giữ cờ và đợi data tươi (effect chạy lại khi [data] đổi) rồi mới chúc mừng.
+  useEffect(() => {
+    if (!data) return
+    if (!celebrateCheckedOnce.current) {
+      celebrateCheckedOnce.current = true
+      try {
+        const raw = sessionStorage.getItem('ngg:celebrate')
+        if (raw) {
+          sessionStorage.removeItem('ngg:celebrate')
+          celebrateFlag.current = JSON.parse(raw)
+        }
+      } catch {
+        celebrateFlag.current = null
+      }
+    }
+    const flag = celebrateFlag.current
+    if (!flag) return
+    if (Date.now() - flag.at > 60_000) {
+      celebrateFlag.current = null
+      return
+    }
+    const node = data.sections.flatMap((s) => s.lessons).flatMap((l) => l.nodes).find((n) => n.id === flag.nodeId)
+    if (!node) {
+      celebrateFlag.current = null
+      return
+    }
+    // Deferred qua rAF cho hợp rule react-hooks/set-state-in-effect
+    if (flag.nodeStatus === 'MASTERED') {
+      if (node.state !== 'MASTERED') return // đợi data tươi — effect sẽ chạy lại khi refetch xong
+      requestAnimationFrame(() => {
+        setCelebrateNodeId(node.id)
+        toast.success('Thành thạo ải!', {
+          description: `"${node.title}" đã lên cấp vàng — すごい!`,
+          icon: <Star className="h-4 w-4" />,
+        })
+        window.setTimeout(() => setCelebrateNodeId(null), 3000)
+      })
+      celebrateFlag.current = null
+    } else if (flag.firstNodeCompletion) {
+      requestAnimationFrame(() => {
+        setCelebrateNodeId(node.id)
+        toast.success('Đã vượt ải mới!', {
+          description: `"${node.title}" hoàn thành — ải tiếp theo đã mở khóa!`,
+          icon: <Sparkles className="h-4 w-4" />,
+        })
+        window.setTimeout(() => setCelebrateNodeId(null), 2200)
+      })
+      celebrateFlag.current = null
+    } else if (flag.lessonCompleted) {
+      requestAnimationFrame(() => {
+        toast.success('Hoàn thành trọn bài học!', {
+          description: 'Bài tiếp theo đã được mở khóa — tiếp tục nào!',
+          icon: <Sparkles className="h-4 w-4" />,
+        })
+      })
+      celebrateFlag.current = null
+    } else {
+      celebrateFlag.current = null
+    }
+  }, [data])
 
   const nextNode = useMemo(() => {
     if (!data) return null
@@ -131,11 +212,16 @@ export function LearnView() {
                 onClick={() => openNode(nextNode)}
                 className="mt-4 rounded-2xl h-12 px-6 font-bold shadow-lg shadow-primary/25 max-w-full"
               >
-                <span className="truncate">Tiếp tục: {nextNode.title}</span>
+                <span className="line-clamp-2 text-left break-words leading-tight">Tiếp tục: {nextNode.title}</span>
                 <ArrowRight className="h-4.5 w-4.5 shrink-0" aria-hidden />
               </Button>
             )}
           </div>
+        </div>
+
+        {/* Từ của ngày — bản di động (desktop hiển thị ở sidebar phải) */}
+        <div className="xl:hidden mb-6">
+          <WordOfDayCard onNavigateVocab={() => navigate('/vocabulary')} />
         </div>
 
         {/* Sections */}
@@ -156,6 +242,7 @@ export function LearnView() {
               <LessonBlock
                 key={lesson.id}
                 lesson={lesson}
+                celebrateNodeId={celebrateNodeId}
                 onOpenNode={openNode}
                 onNodeInfo={() => navigate(`/lessons/${lesson.id}`)}
                 onJump={setJumpTarget}
@@ -202,6 +289,9 @@ export function LearnView() {
 
       {/* Right sidebar widgets (desktop) */}
       <aside className="hidden xl:flex flex-col gap-4 sticky top-20" aria-label="Tóm tắt hôm nay">
+        {/* Word of the day */}
+        <WordOfDayCard onNavigateVocab={() => navigate('/vocabulary')} />
+
         {/* Daily quest */}
         <div className="rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
@@ -216,7 +306,7 @@ export function LearnView() {
             {overview?.quests.slice(0, 3).map((q) => (
               <div key={q.id}>
                 <div className="flex justify-between text-xs font-medium mb-1">
-                  <span className={cn(q.completed && 'text-success line-through')}>{q.title}</span>
+                  <span className={cn(q.completed ? 'text-success font-bold line-through' : '')}>{q.title}</span>
                   <span className="text-muted-foreground tabular-nums">
                     {q.progress}/{q.target}
                   </span>
@@ -292,11 +382,13 @@ export function LearnView() {
 
 function LessonBlock({
   lesson,
+  celebrateNodeId,
   onOpenNode,
   onNodeInfo,
   onJump,
 }: {
   lesson: LessonDTO
+  celebrateNodeId: string | null
   onOpenNode: (node: NodeDTO) => void
   onNodeInfo: () => void
   onJump: (lesson: LessonDTO) => void
@@ -375,7 +467,7 @@ function LessonBlock({
         {lesson.nodes.map((node, i) => (
           <div key={node.id} className="flex flex-col items-center w-full">
             {i > 0 && <div className="path-line w-0.5 h-8" aria-hidden />}
-            <PathNode node={node} onOpen={onOpenNode} />
+            <PathNode node={node} celebrate={celebrateNodeId === node.id} onOpen={onOpenNode} />
           </div>
         ))}
         {lesson.nodes.length === 0 && (
@@ -388,7 +480,7 @@ function LessonBlock({
 
 /* --------------------------------- Path node -------------------------------- */
 
-function PathNode({ node, onOpen }: { node: NodeDTO; onOpen: (n: NodeDTO) => void }) {
+function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boolean; onOpen: (n: NodeDTO) => void }) {
   const [showMenu, setShowMenu] = useState(false)
   const isLocked = node.state === 'LOCKED' || node.exerciseCount === 0
   const isDone = node.state === 'COMPLETED' || node.state === 'MASTERED'
@@ -405,6 +497,8 @@ function PathNode({ node, onOpen }: { node: NodeDTO; onOpen: (n: NodeDTO) => voi
 
   return (
     <div className="relative group">
+      {/* Pháo giấy ăn mừng ải vừa thành thạo (cấp vàng) */}
+      {celebrate && <NodeConfetti />}
       {/* Bong bóng BẮT ĐẦU kiểu Duolingo */}
       {isCurrent && (
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10 animate-bubble-bounce" aria-hidden>
@@ -429,6 +523,7 @@ function PathNode({ node, onOpen }: { node: NodeDTO; onOpen: (n: NodeDTO) => voi
         className={cn(
           'relative h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20 rounded-full flex flex-col items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
           stateCls,
+          celebrate && 'animate-pop-in ring-4 ring-warning/40',
           !isLocked && 'hover:scale-110 active:scale-95',
           isLocked && 'cursor-not-allowed'
         )}
@@ -474,6 +569,104 @@ function PathNode({ node, onOpen }: { node: NodeDTO; onOpen: (n: NodeDTO) => voi
           </a>
         </div>
       )}
+    </div>
+  )
+}
+
+/* --------------------------- Confetti ăn mừng node -------------------------- */
+
+const NODE_CONFETTI_COLORS = ['var(--primary)', 'var(--sakura)', 'var(--success)', 'var(--warning)', 'var(--destructive)']
+
+function NodeConfetti() {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 16 }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        delay: Math.random() * 0.5,
+        duration: 1.4 + Math.random() * 1.2,
+        size: 4 + Math.random() * 5,
+        color: NODE_CONFETTI_COLORS[i % NODE_CONFETTI_COLORS.length],
+        rotate: Math.floor(Math.random() * 360),
+        round: Math.random() > 0.6,
+      })),
+    []
+  )
+  return (
+    <div className="pointer-events-none absolute -inset-8 z-20 overflow-visible" aria-hidden>
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            width: p.size,
+            height: p.round ? p.size : p.size * 0.45,
+            background: p.color,
+            borderRadius: p.round ? '9999px' : '2px',
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            transform: `rotate(${p.rotate}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/* ------------------------------ Từ của ngày -------------------------------- */
+
+function WordOfDayCard({ onNavigateVocab }: { onNavigateVocab: () => void }) {
+  const { data } = useQuery({
+    queryKey: ['daily-word'],
+    queryFn: () => api<{ word: DailyWordDTO | null }>('/api/daily-word'),
+    staleTime: 10 * 60 * 1000,
+  })
+  const word = data?.word
+  if (!word) return null
+
+  const dateLabel = new Date(`${word.date}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+
+  return (
+    <div className="rounded-2xl border bg-gradient-to-br from-sakura/10 via-card to-primary/10 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-sm flex items-center gap-1.5">
+          <CalendarDays className="h-4 w-4 text-sakura" aria-hidden /> Từ của ngày
+        </h3>
+        <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{dateLabel}</span>
+      </div>
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="jp jp-serif text-3xl sm:text-4xl font-bold leading-tight break-words">{word.term}</p>
+          <p className="jp text-sm text-muted-foreground mt-0.5 truncate">
+            {word.reading ? `${word.reading} · ` : ''}{word.romaji}
+          </p>
+        </div>
+        <AudioButton text={word.term} size="sm" className="shrink-0 mt-1" />
+      </div>
+
+      <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+        <p className="font-bold text-sm">{word.meaningVi}</p>
+        {word.pos && (
+          <span className="text-[10px] font-bold uppercase tracking-wide rounded-full bg-primary/10 text-primary px-2 py-0.5">
+            {word.pos}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-xl bg-background/60 border border-border/60 p-2.5">
+        <p className="jp text-sm font-semibold leading-relaxed">{word.exampleJa}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{word.exampleVi}</p>
+      </div>
+
+      <button
+        onClick={onNavigateVocab}
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+      >
+        <BookMarked className="h-3.5 w-3.5" aria-hidden />
+        {word.lessonTitle ? `Từ vựng: ${word.lessonTitle}` : 'Xem kho từ vựng'}
+      </button>
     </div>
   )
 }

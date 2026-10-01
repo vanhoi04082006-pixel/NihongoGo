@@ -91,6 +91,8 @@ interface CompleteSummary {
   durationMs: number
   xp: { total: number; breakdown: { label: string; amount: number }[] }
   perfect: boolean
+  nodeStatus: string | null
+  firstNodeCompletion: boolean
   lessonCompleted: boolean
   heartsGranted: number
   newAchievements: { code: string; title: string; description: string; icon: string; tier: string; xpReward: number }[]
@@ -394,6 +396,27 @@ export function LessonPlayer({
   const instruction =
     TYPE_INSTRUCTION[question?.type ?? ''] ?? question?.prompt ?? 'Trả lời câu hỏi'
 
+  // Rời màn hình hoàn thành → lưu cờ để Learning Path bắn pháo giấy + toast chúc mừng
+  const continueFromCompletion = () => {
+    try {
+      if (summary && summary.passed && session?.nodeId) {
+        sessionStorage.setItem(
+          'ngg:celebrate',
+          JSON.stringify({
+            nodeId: session.nodeId,
+            nodeStatus: summary.nodeStatus,
+            firstNodeCompletion: summary.firstNodeCompletion,
+            lessonCompleted: summary.lessonCompleted,
+            at: Date.now(),
+          })
+        )
+      }
+    } catch {
+      /* sessionStorage có thể bị chặn — bỏ qua */
+    }
+    navigate('/')
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top bar */}
@@ -586,7 +609,7 @@ export function LessonPlayer({
           <CompletionScreen
             summary={summary}
             mode={session.mode}
-            onContinue={() => navigate('/')}
+            onContinue={continueFromCompletion}
             onReplay={() => {
               setPhase('loading')
               setSummary(null)

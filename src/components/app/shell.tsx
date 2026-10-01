@@ -1,14 +1,17 @@
 'use client'
 
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useTheme } from 'next-themes'
 import { BookOpen, BookMarked, BookText, Languages, PenLine, RefreshCw, Search, Trophy, Target, Award, User, Settings, Shield, Moon, Sun, LogOut } from 'lucide-react'
+import { toast } from 'sonner'
 import { useHashRoute } from './router'
 import { useAuth, useAuthActions } from './use-auth'
 import { useOverview } from './use-overview'
 import { LogoFull } from './logo'
 import { StreakBadge, HeartsBadge, XPBadge, AvatarBubble, LoadingBlock } from '@/components/shared/widgets'
 import { DynamicIcon } from '@/components/shared/icon'
+import { setSfxEnabled, sfx } from '@/lib/sounds'
 import { CommandPalette, SearchTrigger, useCommandPalette } from './command-palette'
 import {
   DropdownMenu,
@@ -32,6 +35,28 @@ const NAV_ITEMS = [
   { path: '/achievements', label: 'Thành tích', icon: Award, match: (p: string) => p.startsWith('/achievements') },
   { path: '/profile', label: 'Hồ sơ', icon: User, match: (p: string) => p.startsWith('/profile') },
 ]
+
+/* Tục ngữ Nhật dành cho mascot TopBar (domain chung — không bản quyền) */
+const PROVERBS: { ja: string; romaji: string; vi: string }[] = [
+  { ja: '継続は力なり', romaji: 'Keizoku wa chikara nari', vi: 'Kiên trì chính là sức mạnh.' },
+  { ja: '七転び八起き', romaji: 'Nana korobi ya oki', vi: 'Ngã bảy lần, đứng dậy lần thứ tám.' },
+  { ja: '尘も積もれば山となる', romaji: 'Chiri mo tsumoreba yama to naru', vi: 'Hạt bụi tích lâu cũng thành núi.' },
+  { ja: '一石二鳥', romaji: 'Isseki nichō', vi: 'Một viên đá, hai con chim — một mũi tên trúng hai đích.' },
+  { ja: '猿も木から落ちる', romaji: 'Saru mo ki kara ochiru', vi: 'Khỉ cũng có lúc ngã khỏi cây — ai cũng có lúc sai.' },
+  { ja: '苦は楽の種', romaji: 'Ku wa raku no tane', vi: 'Khổ là hạt giống của niềm vui.' },
+  { ja: '急がば回れ', romaji: 'Isogaba maware', vi: 'Càng gấp càng nên đi đường vòng — càng vội càng phải cẩn thận.' },
+  { ja: '釜の中の猫', romaji: 'Kama no naka no neko', vi: 'Con mèo trong nồi — tò mò quá cũng phiền.' },
+]
+
+let lastProverbIdx = -1
+
+function randomProverb() {
+  if (PROVERBS.length <= 1) return PROVERBS[0]
+  let i = lastProverbIdx
+  while (i === lastProverbIdx) i = Math.floor(Math.random() * PROVERBS.length)
+  lastProverbIdx = i
+  return PROVERBS[i]
+}
 
 /* --------------------------------- Sidebar -------------------------------- */
 
@@ -96,6 +121,17 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const { logout } = useAuthActions(useHashRoute())
   const { theme, setTheme } = useTheme()
 
+  // Mascot chúc một câu tục ngữ Nhật (kèm âm thanh nhẹ nếu bật)
+  const mascotGreet = () => {
+    const p = randomProverb()
+    setSfxEnabled(user?.settings?.soundEnabled ?? true)
+    sfx.combo(2)
+    toast('ことわざ · Tục ngữ Nhật', {
+      description: `${p.ja} (${p.romaji}) — ${p.vi}`,
+      duration: 6000,
+    })
+  }
+
   return (
     <header className="sticky top-0 z-30 bg-background/85 backdrop-blur border-b">
       <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16 px-3 sm:px-6">
@@ -121,6 +157,20 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
           <div className="h-8 w-40 rounded-full shimmer" />
         ) : overview ? (
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={mascotGreet}
+              className="hidden sm:flex h-9 w-9 rounded-full border-2 border-sakura/40 bg-sakura/10 overflow-hidden items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring group animate-mascot-idle hover:animate-mascot-wiggle"
+              aria-label="Chú chó Shiba — bấm để nghe một câu tục ngữ Nhật"
+              title="Bấm để nghe một câu tục ngữ Nhật"
+            >
+              <Image
+                src="/images/mascot-study.png"
+                alt=""
+                width={36}
+                height={36}
+                className="h-full w-full object-cover scale-125 group-hover:scale-[1.4] transition-transform"
+              />
+            </button>
             <button onClick={() => navigate('/profile')} className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Xem chuỗi ngày học">
               <StreakBadge count={overview.streak.currentStreak} freezes={overview.streak.freezeCount} />
             </button>

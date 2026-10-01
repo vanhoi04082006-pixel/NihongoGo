@@ -623,6 +623,8 @@ export interface CompleteSummary {
   xp: { total: number; breakdown: { label: string; amount: number }[] }
   perfect: boolean
   nodeStatus: string | null
+  /** true nếu đây là lần đầu vượt ải này (chưa từng completed trước đó) */
+  firstNodeCompletion: boolean
   lessonCompleted: boolean
   heartsGranted: number
   /** Số "Bảo vệ chuỗi" đã tiêu để giữ streak qua ngày bỏ lỡ (0 nếu không dùng). */
@@ -866,6 +868,7 @@ export async function completeSession(userId: string, sessionId: string): Promis
     xp: xpResult,
     perfect,
     nodeStatus,
+    firstNodeCompletion: firstCompletion,
     lessonCompleted,
     heartsGranted,
     freezesUsed,

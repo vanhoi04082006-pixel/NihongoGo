@@ -158,7 +158,7 @@ export function ChoiceRenderer({ question, draft, setDraft, disabled, feedback }
                   ? 'border-primary bg-primary/10 shadow-sm scale-[1.02]'
                   : 'border-border hover:border-primary/50 hover:bg-muted/50',
                 disabled && !isSelected && !isCorrectOption && 'opacity-60',
-                feedback && isSelected && (feedback.correct ? 'border-success bg-success/10' : 'border-destructive bg-destructive/10 animate-shake'),
+                feedback && isSelected && (feedback.correct ? 'border-success bg-success/10 animate-pop-in' : 'border-destructive bg-destructive/10 animate-shake'),
                 isCorrectOption && 'border-success bg-success/10 opacity-100 animate-pop-in'
               )}
             >
@@ -256,7 +256,7 @@ export function FillBlankRenderer({ question, draft, setDraft, disabled, feedbac
                 isSelected && !feedback
                   ? 'border-primary border-b-primary bg-primary/10 scale-[1.03]'
                   : 'border-border border-b-border hover:border-primary/50 hover:border-b-primary/50 hover:bg-muted/50',
-                feedback && isSelected && (feedback.correct ? 'border-success border-b-success bg-success/10' : 'border-destructive border-b-destructive bg-destructive/10 animate-shake'),
+                feedback && isSelected && (feedback.correct ? 'border-success border-b-success bg-success/10 animate-pop-in' : 'border-destructive border-b-destructive bg-destructive/10 animate-shake'),
                 isCorrectOption && 'border-success border-b-success bg-success/10 opacity-100 animate-pop-in',
                 disabled && !isSelected && !isCorrectOption && 'opacity-60'
               )}
