@@ -429,7 +429,12 @@ async function seedLesson(courseId: string, sectionId: string, l: SeedLesson) {
 
   for (const v of l.vocabulary) {
     const existing = await db.vocabulary.findFirst({ where: { term: v.term }, select: { id: true } })
-    if (existing) continue
+    if (existing) {
+      // Re-seed: bản ghi cũ có thể đã mồ côi lessonId (course bị dựng lại → FK SetNull).
+      // Relink thay vì skip để seed luôn idempotent.
+      await db.vocabulary.update({ where: { id: existing.id }, data: { lessonId: lesson.id } })
+      continue
+    }
     await db.vocabulary.create({ data: {
       lessonId: lesson.id, term: v.term, reading: v.reading, romaji: v.romaji,
       meaningVi: v.meaningVi, pos: v.pos, exampleJa: v.exampleJa, exampleVi: v.exampleVi,
@@ -438,7 +443,11 @@ async function seedLesson(courseId: string, sectionId: string, l: SeedLesson) {
 
   for (const g of l.grammar) {
     const existing = await db.grammarPoint.findUnique({ where: { code: g.code } })
-    if (existing) continue
+    if (existing) {
+      // Re-seed: relink lessonId cho bản ghi cũ (xem ghi chú vocabulary phía trên)
+      await db.grammarPoint.update({ where: { id: existing.id }, data: { lessonId: lesson.id } })
+      continue
+    }
     await db.grammarPoint.create({ data: {
       lessonId: lesson.id, code: g.code, title: g.title,
       explanationVi: g.explanationVi, examples: JSON.stringify(g.examples),
