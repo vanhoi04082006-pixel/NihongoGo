@@ -1,35 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Baloo_2, M_PLUS_Rounded_1c, Noto_Serif_JP } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/app/sw-register";
 
-// Baloo 2 — font tròn thân thiện kiểu Duolingo, hỗ trợ đầy đủ tiếng Việt
-const baloo2 = Baloo_2({
-  weight: ["400", "500", "600", "700", "800"],
-  subsets: ["latin", "vietnamese"],
-  variable: "--font-app-rounded",
-  display: "swap",
-});
-
-// M PLUS Rounded 1c — chữ Nhật tròn đáng yêu (CJK nạp theo unicode-range)
-const mplusRounded = M_PLUS_Rounded_1c({
-  weight: ["400", "500", "700", "800"],
-  subsets: ["latin"],
-  variable: "--font-jp-rounded",
-  display: "swap",
-  preload: false,
-});
-
-// Noto Serif JP — chữ Nhật "bút lông" cho thuật ngữ hiển thị (self-host qua next/font)
-const notoSerifJP = Noto_Serif_JP({
-  weight: ["500", "600", "700"],
-  // subsets chỉ điều khiển preload — CJK nạp theo unicode-range khi chữ xuất hiện
-  subsets: ["latin"],
-  variable: "--font-jp-serif",
-  display: "swap",
-  preload: false, // CJK font rất lớn — không preload toàn bộ, để trình duyệt tải theo unicode-range khi cần
-});
+// Fonts — chiến lược KHÔNG phụ thuộc mạng lúc build (next/font/google fetch Google Fonts
+// khi `next build`, làm CI fail ngẫu nhiên khi bị rate-limit):
+// - Baloo 2 (font UI chính, latin+vietnamese ~70KB): self-host `public/fonts/` qua @font-face
+//   trong globals.css → deterministic + PWA cache offline được.
+// - M PLUS Rounded 1c + Noto Serif JP (CJK rất lớn): load runtime qua Google Fonts CDN
+//   với unicode-range chunking (trình duyệt chỉ tải đoạn cần dùng), kèm fallback font hệ thống.
 
 export const metadata: Metadata = {
   title: "NihongoGo — Học tiếng Nhật mỗi ngày",
@@ -68,7 +47,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" suppressHydrationWarning className={`${baloo2.variable} ${mplusRounded.variable} ${notoSerifJP.variable}`}>
+    <html lang="vi" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* CJK fonts (M PLUS Rounded 1c + Noto Serif JP) — chỉ tải runtime, không dính build.
+            Rule no-page-custom-font dành cho Pages Router (_document.js); ở App Router
+            root layout này link chạy cho MỌI route nên cảnh báo không áp dụng. */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Noto+Serif+JP:wght@500;600;700&display=swap"
+        />
+      </head>
       <body className="antialiased bg-background text-foreground min-h-screen">
         {children}
         <Toaster position="top-center" richColors />

@@ -33,23 +33,41 @@ Kiến trúc chi tiết: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ### Yêu cầu
 
-- Node.js 20+ / Bun 1.1+
+- **Bun 1.1+** (khuyến nghị — script dùng Bun) hoặc Node.js 20+
 - (Tuỳ chọn) Docker cho production
 
-### Cài đặt
+### Cài đặt nhanh (Windows / macOS / Linux)
 
 ```bash
 # 1. Cài dependencies
 bun install
 
-# 2. Cấu hình môi trường
-cp .env.example .env
-# sửa AUTH_SECRET thành chuỗi ngẫu nhiên dài
+# 2. Thiết lập toàn bộ: .env + database + Prisma Client + seed dữ liệu học
+bun run setup
+
+# 3. Chạy dev server
+bun run dev
+# → http://localhost:3000
+```
+
+`bun run setup` tự động: tạo `.env` từ `.env.example` (giữ nguyên `.env` nếu đã có), tạo thư mục `db/`, chạy `prisma generate` + `prisma db push`, seed toàn bộ nội dung học (52 bài, ~3.283 câu hỏi, 876 từ vựng, 137 ngữ pháp, 119 kanji, 208 kana, achievements, quests, users mẫu).
+
+### Cài đặt thủ công (từng bước)
+
+```bash
+# 1. Cài dependencies
+bun install
+
+# 2. Tạo .env từ mẫu
+#    Linux/macOS:        cp .env.example .env
+#    Windows (cmd):      copy .env.example .env
+#    Windows (PowerShell): Copy-Item .env.example .env
+# → mặc định dùng SQLite tại db/custom.db; sửa AUTH_SECRET khi production
 
 # 3. Tạo database (SQLite) + Prisma Client
 bun run db:push
 
-# 4. Seed dữ liệu (course 52 bài học, ~3.283 câu hỏi, 876 từ vựng, 137 ngữ pháp, 119 kanji, 208 kana, achievements, quests, users mẫu)
+# 4. Seed dữ liệu
 bun run db:seed
 
 # 5. Chạy dev server
@@ -68,6 +86,7 @@ bun run dev
 
 | Lệnh | Mô tả |
 |---|---|
+| `bun run setup` | Thiết lập 1 lệnh: .env + db + Prisma + seed |
 | `bun run dev` | Dev server (port 3000) |
 | `bun run lint` | ESLint |
 | `bun run db:push` | Đẩy schema Prisma xuống database |
@@ -100,8 +119,8 @@ docker run -p 3000:3000 \
 
 | Biến | Bắt buộc | Mô tả |
 |---|---|---|
-| `AUTH_SECRET` | ✅ | Pepper hash session token — đổi khi production |
-| `DATABASE_URL` | ✅ | SQLite path (dev) hoặc Postgres URL (prod) |
+| `DATABASE_URL` | ✅ | SQLite path (dev) hoặc Postgres URL (prod) — `bun run setup` tự tạo |
+| `AUTH_SECRET` | production | Pepper hash session token — dev dùng giá trị mặc định, deploy thật phải đặt chuỗi ngẫu nhiên (`openssl rand -hex 32`) |
 
 ## Dịch vụ ngoài (tuỳ chọn)
 
