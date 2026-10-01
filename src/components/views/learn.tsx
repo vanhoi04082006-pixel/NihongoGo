@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake, Rocket, CalendarDays, BookMarked } from 'lucide-react'
+import { Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake, Rocket, CalendarDays, BookMarked, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
@@ -74,6 +74,15 @@ interface LearnDTO {
   stats: { lessonsCompleted: number; totalLessons: number; currentLessonId: string | null }
 }
 
+interface CourseListItemDTO {
+  id: string
+  slug: string
+  title: string
+  titleJa: string | null
+  description: string
+  lessonCount: number
+}
+
 interface DailyWordDTO {
   date: string
   term: string
@@ -89,14 +98,47 @@ interface DailyWordDTO {
 
 /* --------------------------------- View ------------------------------------ */
 
+const COURSE_STORAGE_KEY = 'ngg:course'
+
 export function LearnView() {
   const { navigate } = useHashRoute()
   const qc = useQueryClient()
+  // Khoá đang chọn (lưu localStorage) — rỗng = khoá mặc định (order nhỏ nhất).
+  const [courseSlug, setCourseSlug] = useState<string>('')
+  useEffect(() => {
+    // Đọc sau hydrate (queueMicrotask) — tránh cascade render & hydration mismatch.
+    queueMicrotask(() => {
+      try {
+        setCourseSlug(sessionStorage.getItem(COURSE_STORAGE_KEY) ?? localStorage.getItem(COURSE_STORAGE_KEY) ?? '')
+      } catch {
+        /* bỏ qua */
+      }
+    })
+  }, [])
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['learn'],
-    queryFn: () => api<LearnDTO>('/api/learn'),
+    queryKey: ['learn', courseSlug],
+    queryFn: () => api<LearnDTO>(`/api/learn${courseSlug ? `?course=${encodeURIComponent(courseSlug)}` : ''}`),
+  })
+  // Nếu khoá đã lưu bị 404 (slug đổi/ẩn) → trả về mặc định một lần (deferred).
+  useEffect(() => {
+    if (error && courseSlug) {
+      queueMicrotask(() => {
+        try {
+          sessionStorage.removeItem(COURSE_STORAGE_KEY)
+          localStorage.removeItem(COURSE_STORAGE_KEY)
+        } catch {
+          /* bỏ qua */
+        }
+        setCourseSlug('')
+      })
+    }
+  }, [error, courseSlug])
+  const { data: coursesData } = useQuery({
+    queryKey: ['courses'],
+    queryFn: () => api<{ courses: CourseListItemDTO[] }>('/api/courses'),
   })
   const { data: overview } = useOverview()
+  const courseList = coursesData?.courses ?? []
   const [practiceMenuFor, setPracticeMenuFor] = useState<NodeDTO | null>(null)
   const [jumpTarget, setJumpTarget] = useState<LessonDTO | null>(null)
   const [celebrateNodeId, setCelebrateNodeId] = useState<string | null>(null)
@@ -191,6 +233,45 @@ export function LearnView() {
     <div className="grid xl:grid-cols-[1fr_300px] gap-6 items-start">
       {/* Learning path */}
       <div className="min-w-0">
+        {/* Course switcher — hiện khi có nhiều khoá học */}
+        {courseList.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Chọn khoá học">
+            {courseList.map((c) => {
+              const active = data?.course.slug === c.slug
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setCourseSlug(c.slug)
+                    try {
+                      sessionStorage.setItem(COURSE_STORAGE_KEY, c.slug)
+                      localStorage.setItem(COURSE_STORAGE_KEY, c.slug)
+                    } catch {
+                      /* bỏ qua */
+                    }
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className={cn(
+                    'h-11 rounded-full border px-4 text-sm font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
+                      : 'bg-card hover:border-primary/40 hover:bg-primary/5',
+                  )}
+                >
+                  {c.titleJa && <span className="jp mr-1.5">{c.titleJa}</span>}
+                  <span>{c.title}</span>
+                  <span className={cn('ml-2 text-xs font-semibold tabular-nums', active ? 'opacity-80' : 'text-muted-foreground')}>
+                    {c.lessonCount} bài
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* Header */}
         <div className="rounded-3xl border bg-gradient-to-br from-primary/10 via-card to-sakura/10 p-5 sm:p-6 mb-8 relative overflow-hidden">
           <div className="absolute -right-6 -top-8 text-[120px] leading-none jp font-black text-primary/5 select-none" aria-hidden>
@@ -400,6 +481,12 @@ function LessonBlock({
   const canJump =
     lesson.state === 'LOCKED' && !isDraft && lesson.nodes.some((n) => n.status === 'PUBLISHED' && n.exerciseCount > 0)
 
+  // Thu gọn bài đã hoàn thành: chuỗi ải dài chiếm màn hình — gộp thành dải chip
+  // nhỏ để lộ các bài mới phía dưới. Tự MỞ RỘNG khi có ăn mừng (vừa xong ải).
+  const hasCelebrate = lesson.nodes.some((n) => n.id === celebrateNodeId)
+  const [expanded, setExpanded] = useState(!lessonCompleted)
+  const showNodes = expanded || hasCelebrate
+
   return (
     <div className="mb-2">
       {/* Lesson header card */}
@@ -462,18 +549,63 @@ function LessonBlock({
         </div>
       )}
 
-      {/* Node chain */}
-      <div className="relative flex flex-col items-center">
-        {lesson.nodes.map((node, i) => (
-          <div key={node.id} className="flex flex-col items-center w-full">
-            {i > 0 && <div className="path-line w-0.5 h-8" aria-hidden />}
-            <PathNode node={node} celebrate={celebrateNodeId === node.id} onOpen={onOpenNode} />
+      {/* Node chain — hoặc dạng thu gọn nếu bài đã hoàn thành */}
+      {showNodes ? (
+        <>
+          <div className="relative flex flex-col items-center">
+            {lesson.nodes.map((node, i) => (
+              <div key={node.id} className="flex flex-col items-center w-full">
+                {i > 0 && <div className="path-line w-0.5 h-8" aria-hidden />}
+                <PathNode node={node} celebrate={celebrateNodeId === node.id} onOpen={onOpenNode} />
+              </div>
+            ))}
+            {lesson.nodes.length === 0 && (
+              <p className="text-xs text-muted-foreground py-3">Nội dung sắp ra mắt</p>
+            )}
           </div>
-        ))}
-        {lesson.nodes.length === 0 && (
-          <p className="text-xs text-muted-foreground py-3">Nội dung sắp ra mắt</p>
-        )}
-      </div>
+          {lessonCompleted && (
+            <div className="flex justify-center mt-1">
+              <button
+                onClick={() => setExpanded(false)}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-expanded="true"
+              >
+                <ChevronUp className="h-3.5 w-3.5" aria-hidden /> Thu gọn
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <button
+          onClick={() => setExpanded(true)}
+          className="group w-full mb-2 rounded-2xl border-2 border-dashed border-success/40 bg-success/[0.04] px-4 py-3 transition-all hover:border-success/60 hover:bg-success/10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-expanded="false"
+          aria-label={`Mở rộng ${lesson.totalNodes} ải của bài ${lesson.order}: ${lesson.title}`}
+        >
+          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+            {lesson.nodes.map((n) => {
+              const mastered = n.state === 'MASTERED'
+              return (
+                <span
+                  key={n.id}
+                  title={n.title + (mastered ? ' (Thành thạo)' : ' (Hoàn thành)')}
+                  className={cn(
+                    'h-6 w-6 rounded-full flex items-center justify-center border transition-transform group-hover:scale-110',
+                    mastered
+                      ? 'bg-warning/15 border-warning/50 text-warning'
+                      : 'bg-success/15 border-success/50 text-success'
+                  )}
+                >
+                  {mastered ? <Star className="h-3 w-3" aria-hidden /> : <Check className="h-3 w-3" aria-hidden />}
+                </span>
+              )
+            })}
+          </div>
+          <p className="text-center text-[11px] font-semibold text-muted-foreground mt-2 group-hover:text-foreground transition-colors">
+            Bài {lesson.order} hoàn thành · bấm để mở rộng {lesson.totalNodes} ải ôn lại
+          </p>
+        </button>
+      )}
     </div>
   )
 }

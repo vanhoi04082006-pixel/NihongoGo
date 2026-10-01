@@ -1,0 +1,1341 @@
+{
+  "source": "KanjiVG",
+  "license": "CC BY-SA 3.0",
+  "characters": [
+    {
+      "ch": "あ",
+      "hex": "03042",
+      "has": true
+    },
+    {
+      "ch": "い",
+      "hex": "03044",
+      "has": true
+    },
+    {
+      "ch": "う",
+      "hex": "03046",
+      "has": true
+    },
+    {
+      "ch": "え",
+      "hex": "03048",
+      "has": true
+    },
+    {
+      "ch": "お",
+      "hex": "0304a",
+      "has": true
+    },
+    {
+      "ch": "か",
+      "hex": "0304b",
+      "has": true
+    },
+    {
+      "ch": "が",
+      "hex": "0304c",
+      "has": true
+    },
+    {
+      "ch": "き",
+      "hex": "0304d",
+      "has": true
+    },
+    {
+      "ch": "ぎ",
+      "hex": "0304e",
+      "has": true
+    },
+    {
+      "ch": "く",
+      "hex": "0304f",
+      "has": true
+    },
+    {
+      "ch": "ぐ",
+      "hex": "03050",
+      "has": true
+    },
+    {
+      "ch": "け",
+      "hex": "03051",
+      "has": true
+    },
+    {
+      "ch": "げ",
+      "hex": "03052",
+      "has": true
+    },
+    {
+      "ch": "こ",
+      "hex": "03053",
+      "has": true
+    },
+    {
+      "ch": "ご",
+      "hex": "03054",
+      "has": true
+    },
+    {
+      "ch": "さ",
+      "hex": "03055",
+      "has": true
+    },
+    {
+      "ch": "ざ",
+      "hex": "03056",
+      "has": true
+    },
+    {
+      "ch": "し",
+      "hex": "03057",
+      "has": true
+    },
+    {
+      "ch": "じ",
+      "hex": "03058",
+      "has": true
+    },
+    {
+      "ch": "す",
+      "hex": "03059",
+      "has": true
+    },
+    {
+      "ch": "ず",
+      "hex": "0305a",
+      "has": true
+    },
+    {
+      "ch": "せ",
+      "hex": "0305b",
+      "has": true
+    },
+    {
+      "ch": "ぜ",
+      "hex": "0305c",
+      "has": true
+    },
+    {
+      "ch": "そ",
+      "hex": "0305d",
+      "has": true
+    },
+    {
+      "ch": "ぞ",
+      "hex": "0305e",
+      "has": true
+    },
+    {
+      "ch": "た",
+      "hex": "0305f",
+      "has": true
+    },
+    {
+      "ch": "だ",
+      "hex": "03060",
+      "has": true
+    },
+    {
+      "ch": "ち",
+      "hex": "03061",
+      "has": true
+    },
+    {
+      "ch": "ぢ",
+      "hex": "03062",
+      "has": true
+    },
+    {
+      "ch": "つ",
+      "hex": "03064",
+      "has": true
+    },
+    {
+      "ch": "づ",
+      "hex": "03065",
+      "has": true
+    },
+    {
+      "ch": "て",
+      "hex": "03066",
+      "has": true
+    },
+    {
+      "ch": "で",
+      "hex": "03067",
+      "has": true
+    },
+    {
+      "ch": "と",
+      "hex": "03068",
+      "has": true
+    },
+    {
+      "ch": "ど",
+      "hex": "03069",
+      "has": true
+    },
+    {
+      "ch": "な",
+      "hex": "0306a",
+      "has": true
+    },
+    {
+      "ch": "に",
+      "hex": "0306b",
+      "has": true
+    },
+    {
+      "ch": "ぬ",
+      "hex": "0306c",
+      "has": true
+    },
+    {
+      "ch": "ね",
+      "hex": "0306d",
+      "has": true
+    },
+    {
+      "ch": "の",
+      "hex": "0306e",
+      "has": true
+    },
+    {
+      "ch": "は",
+      "hex": "0306f",
+      "has": true
+    },
+    {
+      "ch": "ば",
+      "hex": "03070",
+      "has": true
+    },
+    {
+      "ch": "ぱ",
+      "hex": "03071",
+      "has": true
+    },
+    {
+      "ch": "ひ",
+      "hex": "03072",
+      "has": true
+    },
+    {
+      "ch": "び",
+      "hex": "03073",
+      "has": true
+    },
+    {
+      "ch": "ぴ",
+      "hex": "03074",
+      "has": true
+    },
+    {
+      "ch": "ふ",
+      "hex": "03075",
+      "has": true
+    },
+    {
+      "ch": "ぶ",
+      "hex": "03076",
+      "has": true
+    },
+    {
+      "ch": "ぷ",
+      "hex": "03077",
+      "has": true
+    },
+    {
+      "ch": "へ",
+      "hex": "03078",
+      "has": true
+    },
+    {
+      "ch": "べ",
+      "hex": "03079",
+      "has": true
+    },
+    {
+      "ch": "ぺ",
+      "hex": "0307a",
+      "has": true
+    },
+    {
+      "ch": "ほ",
+      "hex": "0307b",
+      "has": true
+    },
+    {
+      "ch": "ぼ",
+      "hex": "0307c",
+      "has": true
+    },
+    {
+      "ch": "ぽ",
+      "hex": "0307d",
+      "has": true
+    },
+    {
+      "ch": "ま",
+      "hex": "0307e",
+      "has": true
+    },
+    {
+      "ch": "み",
+      "hex": "0307f",
+      "has": true
+    },
+    {
+      "ch": "む",
+      "hex": "03080",
+      "has": true
+    },
+    {
+      "ch": "め",
+      "hex": "03081",
+      "has": true
+    },
+    {
+      "ch": "も",
+      "hex": "03082",
+      "has": true
+    },
+    {
+      "ch": "ゃ",
+      "hex": "03083",
+      "has": true
+    },
+    {
+      "ch": "や",
+      "hex": "03084",
+      "has": true
+    },
+    {
+      "ch": "ゅ",
+      "hex": "03085",
+      "has": true
+    },
+    {
+      "ch": "ゆ",
+      "hex": "03086",
+      "has": true
+    },
+    {
+      "ch": "ょ",
+      "hex": "03087",
+      "has": true
+    },
+    {
+      "ch": "よ",
+      "hex": "03088",
+      "has": true
+    },
+    {
+      "ch": "ら",
+      "hex": "03089",
+      "has": true
+    },
+    {
+      "ch": "り",
+      "hex": "0308a",
+      "has": true
+    },
+    {
+      "ch": "る",
+      "hex": "0308b",
+      "has": true
+    },
+    {
+      "ch": "れ",
+      "hex": "0308c",
+      "has": true
+    },
+    {
+      "ch": "ろ",
+      "hex": "0308d",
+      "has": true
+    },
+    {
+      "ch": "わ",
+      "hex": "0308f",
+      "has": true
+    },
+    {
+      "ch": "を",
+      "hex": "03092",
+      "has": true
+    },
+    {
+      "ch": "ん",
+      "hex": "03093",
+      "has": true
+    },
+    {
+      "ch": "ア",
+      "hex": "030a2",
+      "has": true
+    },
+    {
+      "ch": "イ",
+      "hex": "030a4",
+      "has": true
+    },
+    {
+      "ch": "ウ",
+      "hex": "030a6",
+      "has": true
+    },
+    {
+      "ch": "エ",
+      "hex": "030a8",
+      "has": true
+    },
+    {
+      "ch": "オ",
+      "hex": "030aa",
+      "has": true
+    },
+    {
+      "ch": "カ",
+      "hex": "030ab",
+      "has": true
+    },
+    {
+      "ch": "ガ",
+      "hex": "030ac",
+      "has": true
+    },
+    {
+      "ch": "キ",
+      "hex": "030ad",
+      "has": true
+    },
+    {
+      "ch": "ギ",
+      "hex": "030ae",
+      "has": true
+    },
+    {
+      "ch": "ク",
+      "hex": "030af",
+      "has": true
+    },
+    {
+      "ch": "グ",
+      "hex": "030b0",
+      "has": true
+    },
+    {
+      "ch": "ケ",
+      "hex": "030b1",
+      "has": true
+    },
+    {
+      "ch": "ゲ",
+      "hex": "030b2",
+      "has": true
+    },
+    {
+      "ch": "コ",
+      "hex": "030b3",
+      "has": true
+    },
+    {
+      "ch": "ゴ",
+      "hex": "030b4",
+      "has": true
+    },
+    {
+      "ch": "サ",
+      "hex": "030b5",
+      "has": true
+    },
+    {
+      "ch": "ザ",
+      "hex": "030b6",
+      "has": true
+    },
+    {
+      "ch": "シ",
+      "hex": "030b7",
+      "has": true
+    },
+    {
+      "ch": "ジ",
+      "hex": "030b8",
+      "has": true
+    },
+    {
+      "ch": "ス",
+      "hex": "030b9",
+      "has": true
+    },
+    {
+      "ch": "ズ",
+      "hex": "030ba",
+      "has": true
+    },
+    {
+      "ch": "セ",
+      "hex": "030bb",
+      "has": true
+    },
+    {
+      "ch": "ゼ",
+      "hex": "030bc",
+      "has": true
+    },
+    {
+      "ch": "ソ",
+      "hex": "030bd",
+      "has": true
+    },
+    {
+      "ch": "ゾ",
+      "hex": "030be",
+      "has": true
+    },
+    {
+      "ch": "タ",
+      "hex": "030bf",
+      "has": true
+    },
+    {
+      "ch": "ダ",
+      "hex": "030c0",
+      "has": true
+    },
+    {
+      "ch": "チ",
+      "hex": "030c1",
+      "has": true
+    },
+    {
+      "ch": "ヂ",
+      "hex": "030c2",
+      "has": true
+    },
+    {
+      "ch": "ツ",
+      "hex": "030c4",
+      "has": true
+    },
+    {
+      "ch": "ヅ",
+      "hex": "030c5",
+      "has": true
+    },
+    {
+      "ch": "テ",
+      "hex": "030c6",
+      "has": true
+    },
+    {
+      "ch": "デ",
+      "hex": "030c7",
+      "has": true
+    },
+    {
+      "ch": "ト",
+      "hex": "030c8",
+      "has": true
+    },
+    {
+      "ch": "ド",
+      "hex": "030c9",
+      "has": true
+    },
+    {
+      "ch": "ナ",
+      "hex": "030ca",
+      "has": true
+    },
+    {
+      "ch": "ニ",
+      "hex": "030cb",
+      "has": true
+    },
+    {
+      "ch": "ヌ",
+      "hex": "030cc",
+      "has": true
+    },
+    {
+      "ch": "ネ",
+      "hex": "030cd",
+      "has": true
+    },
+    {
+      "ch": "ノ",
+      "hex": "030ce",
+      "has": true
+    },
+    {
+      "ch": "ハ",
+      "hex": "030cf",
+      "has": true
+    },
+    {
+      "ch": "バ",
+      "hex": "030d0",
+      "has": true
+    },
+    {
+      "ch": "パ",
+      "hex": "030d1",
+      "has": true
+    },
+    {
+      "ch": "ヒ",
+      "hex": "030d2",
+      "has": true
+    },
+    {
+      "ch": "ビ",
+      "hex": "030d3",
+      "has": true
+    },
+    {
+      "ch": "ピ",
+      "hex": "030d4",
+      "has": true
+    },
+    {
+      "ch": "フ",
+      "hex": "030d5",
+      "has": true
+    },
+    {
+      "ch": "ブ",
+      "hex": "030d6",
+      "has": true
+    },
+    {
+      "ch": "プ",
+      "hex": "030d7",
+      "has": true
+    },
+    {
+      "ch": "ヘ",
+      "hex": "030d8",
+      "has": true
+    },
+    {
+      "ch": "ベ",
+      "hex": "030d9",
+      "has": true
+    },
+    {
+      "ch": "ペ",
+      "hex": "030da",
+      "has": true
+    },
+    {
+      "ch": "ホ",
+      "hex": "030db",
+      "has": true
+    },
+    {
+      "ch": "ボ",
+      "hex": "030dc",
+      "has": true
+    },
+    {
+      "ch": "ポ",
+      "hex": "030dd",
+      "has": true
+    },
+    {
+      "ch": "マ",
+      "hex": "030de",
+      "has": true
+    },
+    {
+      "ch": "ミ",
+      "hex": "030df",
+      "has": true
+    },
+    {
+      "ch": "ム",
+      "hex": "030e0",
+      "has": true
+    },
+    {
+      "ch": "メ",
+      "hex": "030e1",
+      "has": true
+    },
+    {
+      "ch": "モ",
+      "hex": "030e2",
+      "has": true
+    },
+    {
+      "ch": "ャ",
+      "hex": "030e3",
+      "has": true
+    },
+    {
+      "ch": "ヤ",
+      "hex": "030e4",
+      "has": true
+    },
+    {
+      "ch": "ュ",
+      "hex": "030e5",
+      "has": true
+    },
+    {
+      "ch": "ユ",
+      "hex": "030e6",
+      "has": true
+    },
+    {
+      "ch": "ョ",
+      "hex": "030e7",
+      "has": true
+    },
+    {
+      "ch": "ヨ",
+      "hex": "030e8",
+      "has": true
+    },
+    {
+      "ch": "ラ",
+      "hex": "030e9",
+      "has": true
+    },
+    {
+      "ch": "リ",
+      "hex": "030ea",
+      "has": true
+    },
+    {
+      "ch": "ル",
+      "hex": "030eb",
+      "has": true
+    },
+    {
+      "ch": "レ",
+      "hex": "030ec",
+      "has": true
+    },
+    {
+      "ch": "ロ",
+      "hex": "030ed",
+      "has": true
+    },
+    {
+      "ch": "ワ",
+      "hex": "030ef",
+      "has": true
+    },
+    {
+      "ch": "ヲ",
+      "hex": "030f2",
+      "has": true
+    },
+    {
+      "ch": "ン",
+      "hex": "030f3",
+      "has": true
+    },
+    {
+      "ch": "一",
+      "hex": "04e00",
+      "has": true
+    },
+    {
+      "ch": "七",
+      "hex": "04e03",
+      "has": true
+    },
+    {
+      "ch": "万",
+      "hex": "04e07",
+      "has": true
+    },
+    {
+      "ch": "三",
+      "hex": "04e09",
+      "has": true
+    },
+    {
+      "ch": "上",
+      "hex": "04e0a",
+      "has": true
+    },
+    {
+      "ch": "下",
+      "hex": "04e0b",
+      "has": true
+    },
+    {
+      "ch": "中",
+      "hex": "04e2d",
+      "has": true
+    },
+    {
+      "ch": "乗",
+      "hex": "04e57",
+      "has": true
+    },
+    {
+      "ch": "九",
+      "hex": "04e5d",
+      "has": true
+    },
+    {
+      "ch": "予",
+      "hex": "04e88",
+      "has": true
+    },
+    {
+      "ch": "事",
+      "hex": "04e8b",
+      "has": true
+    },
+    {
+      "ch": "二",
+      "hex": "04e8c",
+      "has": true
+    },
+    {
+      "ch": "五",
+      "hex": "04e94",
+      "has": true
+    },
+    {
+      "ch": "人",
+      "hex": "04eba",
+      "has": true
+    },
+    {
+      "ch": "今",
+      "hex": "04eca",
+      "has": true
+    },
+    {
+      "ch": "仕",
+      "hex": "04ed5",
+      "has": true
+    },
+    {
+      "ch": "休",
+      "hex": "04f11",
+      "has": true
+    },
+    {
+      "ch": "作",
+      "hex": "04f5c",
+      "has": true
+    },
+    {
+      "ch": "使",
+      "hex": "04f7f",
+      "has": true
+    },
+    {
+      "ch": "例",
+      "hex": "04f8b",
+      "has": true
+    },
+    {
+      "ch": "働",
+      "hex": "050cd",
+      "has": true
+    },
+    {
+      "ch": "兄",
+      "hex": "05144",
+      "has": true
+    },
+    {
+      "ch": "先",
+      "hex": "05148",
+      "has": true
+    },
+    {
+      "ch": "入",
+      "hex": "05165",
+      "has": true
+    },
+    {
+      "ch": "八",
+      "hex": "0516b",
+      "has": true
+    },
+    {
+      "ch": "六",
+      "hex": "0516d",
+      "has": true
+    },
+    {
+      "ch": "内",
+      "hex": "05185",
+      "has": true
+    },
+    {
+      "ch": "冬",
+      "hex": "051ac",
+      "has": true
+    },
+    {
+      "ch": "出",
+      "hex": "051fa",
+      "has": true
+    },
+    {
+      "ch": "十",
+      "hex": "05341",
+      "has": true
+    },
+    {
+      "ch": "千",
+      "hex": "05343",
+      "has": true
+    },
+    {
+      "ch": "参",
+      "hex": "053c2",
+      "has": true
+    },
+    {
+      "ch": "可",
+      "hex": "053ef",
+      "has": true
+    },
+    {
+      "ch": "同",
+      "hex": "0540c",
+      "has": true
+    },
+    {
+      "ch": "向",
+      "hex": "05411",
+      "has": true
+    },
+    {
+      "ch": "四",
+      "hex": "056db",
+      "has": true
+    },
+    {
+      "ch": "壊",
+      "hex": "058ca",
+      "has": true
+    },
+    {
+      "ch": "声",
+      "hex": "058f0",
+      "has": true
+    },
+    {
+      "ch": "多",
+      "hex": "0591a",
+      "has": true
+    },
+    {
+      "ch": "夜",
+      "hex": "0591c",
+      "has": true
+    },
+    {
+      "ch": "夢",
+      "hex": "05922",
+      "has": true
+    },
+    {
+      "ch": "大",
+      "hex": "05927",
+      "has": true
+    },
+    {
+      "ch": "天",
+      "hex": "05929",
+      "has": true
+    },
+    {
+      "ch": "女",
+      "hex": "05973",
+      "has": true
+    },
+    {
+      "ch": "子",
+      "hex": "05b50",
+      "has": true
+    },
+    {
+      "ch": "学",
+      "hex": "05b66",
+      "has": true
+    },
+    {
+      "ch": "寝",
+      "hex": "05bdd",
+      "has": true
+    },
+    {
+      "ch": "小",
+      "hex": "05c0f",
+      "has": true
+    },
+    {
+      "ch": "少",
+      "hex": "05c11",
+      "has": true
+    },
+    {
+      "ch": "山",
+      "hex": "05c71",
+      "has": true
+    },
+    {
+      "ch": "川",
+      "hex": "05ddd",
+      "has": true
+    },
+    {
+      "ch": "帰",
+      "hex": "05e30",
+      "has": true
+    },
+    {
+      "ch": "年",
+      "hex": "05e74",
+      "has": true
+    },
+    {
+      "ch": "弟",
+      "hex": "05f1f",
+      "has": true
+    },
+    {
+      "ch": "待",
+      "hex": "05f85",
+      "has": true
+    },
+    {
+      "ch": "御",
+      "hex": "05fa1",
+      "has": true
+    },
+    {
+      "ch": "忘",
+      "hex": "05fd8",
+      "has": true
+    },
+    {
+      "ch": "思",
+      "hex": "0601d",
+      "has": true
+    },
+    {
+      "ch": "所",
+      "hex": "06240",
+      "has": true
+    },
+    {
+      "ch": "承",
+      "hex": "0627f",
+      "has": true
+    },
+    {
+      "ch": "持",
+      "hex": "06301",
+      "has": true
+    },
+    {
+      "ch": "教",
+      "hex": "06559",
+      "has": true
+    },
+    {
+      "ch": "日",
+      "hex": "065e5",
+      "has": true
+    },
+    {
+      "ch": "昔",
+      "hex": "06614",
+      "has": true
+    },
+    {
+      "ch": "昨",
+      "hex": "06628",
+      "has": true
+    },
+    {
+      "ch": "時",
+      "hex": "06642",
+      "has": true
+    },
+    {
+      "ch": "書",
+      "hex": "066f8",
+      "has": true
+    },
+    {
+      "ch": "朝",
+      "hex": "0671d",
+      "has": true
+    },
+    {
+      "ch": "本",
+      "hex": "0672c",
+      "has": true
+    },
+    {
+      "ch": "来",
+      "hex": "06765",
+      "has": true
+    },
+    {
+      "ch": "校",
+      "hex": "06821",
+      "has": true
+    },
+    {
+      "ch": "様",
+      "hex": "069d8",
+      "has": true
+    },
+    {
+      "ch": "止",
+      "hex": "06b62",
+      "has": true
+    },
+    {
+      "ch": "毎",
+      "hex": "06bce",
+      "has": true
+    },
+    {
+      "ch": "気",
+      "hex": "06c17",
+      "has": true
+    },
+    {
+      "ch": "泳",
+      "hex": "06cf3",
+      "has": true
+    },
+    {
+      "ch": "物",
+      "hex": "07269",
+      "has": true
+    },
+    {
+      "ch": "理",
+      "hex": "07406",
+      "has": true
+    },
+    {
+      "ch": "生",
+      "hex": "0751f",
+      "has": true
+    },
+    {
+      "ch": "田",
+      "hex": "07530",
+      "has": true
+    },
+    {
+      "ch": "由",
+      "hex": "07531",
+      "has": true
+    },
+    {
+      "ch": "申",
+      "hex": "07533",
+      "has": true
+    },
+    {
+      "ch": "男",
+      "hex": "07537",
+      "has": true
+    },
+    {
+      "ch": "疲",
+      "hex": "075b2",
+      "has": true
+    },
+    {
+      "ch": "病",
+      "hex": "075c5",
+      "has": true
+    },
+    {
+      "ch": "百",
+      "hex": "0767e",
+      "has": true
+    },
+    {
+      "ch": "目",
+      "hex": "076ee",
+      "has": true
+    },
+    {
+      "ch": "知",
+      "hex": "077e5",
+      "has": true
+    },
+    {
+      "ch": "確",
+      "hex": "078ba",
+      "has": true
+    },
+    {
+      "ch": "秋",
+      "hex": "079cb",
+      "has": true
+    },
+    {
+      "ch": "立",
+      "hex": "07acb",
+      "has": true
+    },
+    {
+      "ch": "終",
+      "hex": "07d42",
+      "has": true
+    },
+    {
+      "ch": "置",
+      "hex": "07f6e",
+      "has": true
+    },
+    {
+      "ch": "習",
+      "hex": "07fd2",
+      "has": true
+    },
+    {
+      "ch": "者",
+      "hex": "08005",
+      "has": true
+    },
+    {
+      "ch": "能",
+      "hex": "080fd",
+      "has": true
+    },
+    {
+      "ch": "致",
+      "hex": "081f4",
+      "has": true
+    },
+    {
+      "ch": "若",
+      "hex": "082e5",
+      "has": true
+    },
+    {
+      "ch": "行",
+      "hex": "0884c",
+      "has": true
+    },
+    {
+      "ch": "見",
+      "hex": "0898b",
+      "has": true
+    },
+    {
+      "ch": "覚",
+      "hex": "0899a",
+      "has": true
+    },
+    {
+      "ch": "親",
+      "hex": "089aa",
+      "has": true
+    },
+    {
+      "ch": "言",
+      "hex": "08a00",
+      "has": true
+    },
+    {
+      "ch": "話",
+      "hex": "08a71",
+      "has": true
+    },
+    {
+      "ch": "語",
+      "hex": "08a9e",
+      "has": true
+    },
+    {
+      "ch": "読",
+      "hex": "08aad",
+      "has": true
+    },
+    {
+      "ch": "貴",
+      "hex": "08cb4",
+      "has": true
+    },
+    {
+      "ch": "買",
+      "hex": "08cb7",
+      "has": true
+    },
+    {
+      "ch": "起",
+      "hex": "08d77",
+      "has": true
+    },
+    {
+      "ch": "越",
+      "hex": "08d8a",
+      "has": true
+    },
+    {
+      "ch": "週",
+      "hex": "09031",
+      "has": true
+    },
+    {
+      "ch": "閉",
+      "hex": "09589",
+      "has": true
+    },
+    {
+      "ch": "開",
+      "hex": "0958b",
+      "has": true
+    },
+    {
+      "ch": "間",
+      "hex": "09593",
+      "has": true
+    },
+    {
+      "ch": "雨",
+      "hex": "096e8",
+      "has": true
+    },
+    {
+      "ch": "頃",
+      "hex": "09803",
+      "has": true
+    },
+    {
+      "ch": "顔",
+      "hex": "09854",
+      "has": true
+    },
+    {
+      "ch": "食",
+      "hex": "098df",
+      "has": true
+    },
+    {
+      "ch": "飲",
+      "hex": "098f2",
+      "has": true
+    }
+  ]
+}

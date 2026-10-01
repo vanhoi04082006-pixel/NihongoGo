@@ -21,6 +21,7 @@ interface SettingsDTO {
     romajiDisplay: boolean
     autoSpeak: boolean
     reducedMotion: boolean
+    kanaMasteryTarget: number
   }
 }
 
@@ -51,6 +52,7 @@ export function SettingsView() {
   const [romaji, setRomaji] = useState(true)
   const [autoSpeak, setAutoSpeak] = useState(false)
   const [reduced, setReduced] = useState(false)
+  const [kanaTarget, setKanaTarget] = useState('10')
   const [displayName, setDisplayName] = useState('')
   const [dailyGoal, setDailyGoal] = useState('20')
   const [timezone, setTimezone] = useState('Asia/Ho_Chi_Minh')
@@ -88,6 +90,7 @@ export function SettingsView() {
       setRomaji(data.settings.romajiDisplay)
       setAutoSpeak(data.settings.autoSpeak)
       setReduced(data.settings.reducedMotion)
+      setKanaTarget(String(data.settings.kanaMasteryTarget ?? 10))
     }
     if (user?.profile) {
       setDisplayName(user.profile.displayName ?? '')
@@ -172,6 +175,44 @@ export function SettingsView() {
             void saveSettings({ reducedMotion: v })
           }}
         />
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label htmlFor="setting-kana-target" className="font-semibold text-sm">
+              Mục tiêu thành thạo kana
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Số lần trả lời đúng để một ký tự kana được tính là “thành thạo” (3–50, mặc định 10).
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Input
+              id="setting-kana-target"
+              type="number"
+              inputMode="numeric"
+              min={3}
+              max={50}
+              value={kanaTarget}
+              onChange={(e) => setKanaTarget(e.target.value)}
+              onBlur={() => {
+                const n = Math.round(Number(kanaTarget))
+                if (!Number.isFinite(n) || n < 3 || n > 50) {
+                  toast.error('Mục tiêu thành thạo kana phải từ 3 đến 50 lần đúng')
+                  setKanaTarget(String(data.settings.kanaMasteryTarget ?? 10))
+                  return
+                }
+                if (n !== (data.settings.kanaMasteryTarget ?? 10)) {
+                  setKanaTarget(String(n))
+                  void saveSettings({ kanaMasteryTarget: n })
+                }
+              }}
+              className="w-20 text-center font-bold tabular-nums"
+              aria-describedby="setting-kana-target-hint"
+            />
+            <span id="setting-kana-target-hint" className="text-xs text-muted-foreground">
+              lần đúng
+            </span>
+          </div>
+        </div>
       </section>
 
       {/* Profile */}

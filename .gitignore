@@ -67,3 +67,12 @@ server.log
 prompt
 # Test artifacts (SQLite integration DB)
 tests/.tmp/
+
+# Playwright E2E artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# DB backups local
+db/*.bak-*

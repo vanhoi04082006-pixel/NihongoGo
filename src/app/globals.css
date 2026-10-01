@@ -386,6 +386,17 @@
   animation: shimmer 1.4s infinite linear;
 }
 
+/* Nét chữ KanjiVG: nét hiện tại được "viết" dần (dash-offset chạy về 0).
+   pathLength="1" trên <path> chuẩn hoá chiều dài → dasharray 1 = hết nét. */
+@keyframes kvg-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.kvg-current {
+  stroke-dasharray: 1;
+  animation: kvg-draw var(--kvg-dur, 800ms) cubic-bezier(0.3, 0.1, 0.4, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .node-available-ring,
   .shimmer,
@@ -397,8 +408,10 @@
   .animate-mascot-idle,
   .animate-mascot-wiggle,
   .confetti-piece,
+  .kvg-current,
   .quick-link-in {
     animation: none;
+    stroke-dasharray: none;
   }
   *,
   *::before,

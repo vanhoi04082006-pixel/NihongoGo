@@ -91,10 +91,13 @@ bun run dev
 
 | Lệnh | Mô tả |
 |---|---|
-| `bun run setup` | Thiết lập 1 lệnh: .env + db + Prisma + seed |
-| `bun run dev` | Dev server (port 3000) |
+| `bun run setup` | Thiết lập 1 lệnh: .env + db + Prisma + seed (N5 + Irodori A1) |
+| `bun run dev` | Dev server (port 3000) — lần đầu tự khởi tạo database nếu thiếu |
 | `bun run lint` | ESLint |
-| `bun test` | Test suite (61 unit + 20 integration — integration tự setup SQLite riêng trong `tests/.tmp`, không đụng DB dev) |
+| `bun test` | Test suite (unit + integration — integration tự setup SQLite riêng trong `tests/.tmp`, không đụng DB dev) |
+| `bun run test:e2e` | E2E Playwright: đăng ký → đăng nhập → học bài → test-out → unlock (`tests/e2e/`) |
+| `bun run seed` | Alias của db:seed — seed toàn bộ (N5 52 bài + Irodori A1 12 bài) |
+| `bun run seed:irodori` | Chỉ seed/patch khoá Irodori A1 (idempotent) |
 | `bun run audit:content` | Audit DB content: số liệu thật + question quality theo type + exercise 0 câu + orphan (exit 1 nếu ERROR) |
 | `bun run db:push` | Đẩy schema Prisma xuống database |
 | `bun run db:seed` | Seed dữ liệu (idempotent với users/progress) |
@@ -105,8 +108,9 @@ bun run dev
 ## Kiểm thử & chất lượng nội dung
 
 - **Unit tests** (`tests/unit/`): japanese normalizer, grading engine (mọi dạng bài + anti-cheat: server không tin điểm client), datetime/XP, CSRF helpers. Pure functions, không cần DB.
-- **Integration tests** (`tests/integration/`): gọi route handlers thật (register/login/logout/me, CSRF/origin 2 chiều, RBAC USER→admin 403, tạo phiên học + trả lời theo đáp án thật từ DB, hearts không âm, XP ledger, double-complete, optimistic-lock) trên SQLite riêng tự sinh.
-- **Content validator** (`scripts/content-validate.ts`): chạy trong CI — validate 47 file curriculum + generated questions (kể cả rule exercise 0 câu hỏi = FAIL).
+- **Integration tests** (`tests/integration/`): gọi route handlers thật (register/login/logout/me, CSRF/origin 2 chiều, RBAC USER→admin 403, tạo phiên học + trả lời theo đáp án thật từ DB, hearts không âm, XP ledger, double-complete, optimistic-lock, kana practice server-graded) trên SQLite riêng tự sinh.
+- **E2E Playwright** (`tests/e2e/full-flow.e2e.ts`): luồng vàng chạy trên browser thật — đăng ký UI → đăng xuất → đăng nhập UI → học node kana đầu tiên (trả lời đúng toàn bộ 15 câu bằng đáp án đọc từ DB, đủ mọi renderer) → test-out "Nhảy tới đây?" đạt 100% → kiểm chứng toàn bộ node bài trước được đánh dấu hoàn thành + bài mới mở khóa + không có XP ảo trong ledger. Chạy: `bun run test:e2e` (tự khởi động dev server nếu chưa có).
+- **Content validator** (`scripts/content-validate.ts`): chạy trong CI — validate file curriculum + generated questions (kể cả rule exercise 0 câu hỏi = FAIL).
 - **DB audit** (`scripts/audit-content.ts`): số liệu thật từ database (lesson/node/exercise/question/vocab/grammar/kanji/kana), question quality theo type, renderer coverage, orphan — dùng `--json` cho CI.
 
 ## Âm thanh & giọng nói (zero-cost)
@@ -173,3 +177,5 @@ docs/ARCHITECTURE.md
 ## Bản quyền nội dung
 
 Toàn bộ câu hỏi, hội thoại, ví dụ, giải thích tiếng Việt là **nội dung gốc của NihongoGo**. Không sử dụng lại logo, hình ảnh, âm thanh, nội dung có bản quyền của bất kỳ ứng dụng hay giáo trình nào. Icon hệ thống: [Lucide](https://lucide.dev) (ISC license).
+
+Dữ liệu **nét chữ kana/kanji** (stroke order) trong "Thành thạo Kana" lấy từ [KanjiVG](https://kanjivg.github.io) (tác giả Ulrich Apel), phân phối theo giấy phép [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) — chi tiết ghi công tại `public/strokes/CREDITS.md`.

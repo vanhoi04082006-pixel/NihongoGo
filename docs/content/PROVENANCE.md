@@ -40,4 +40,18 @@ Mỗi `prisma/seed-data/curriculum/lesson{N}.ts` là một bản ghi provenance 
 - `slug`, metadata, objectives — theo progression cấp cao.
 - Nội dung — biên soạn bởi agent NihongoGo (Task 16-c*), kiểm chứng tự động.
 
-Ngày chốt: 2026-09-30.
+## Bản ghi khoá "Irodori A1 — Tiếng Nhật sinh tồn" (Task 27, 2026-10-01)
+
+| Trường | Giá trị |
+|---|---|
+| Course slug | `irodori-a1` (order 2, PUBLISHED, 3 section × 4 bài) |
+| Khung tham chiếu | Danh sách chủ đề giao tiếp sinh tồn cấp A1 (JF A1 — tri thức phổ quát) |
+| Phạm vi tham chiếu | CHỈ tên chủ đề: chào hỏi, giới thiệu, số/giờ/ngày, mua sắm, ăn uống, thói quen, chỉ đường, sở thích, thời tiết, lời mời, sức khoẻ, tổng kết |
+| Nội dung | 12 bài (`prisma/seed-data/irodori/irodori1..12.ts`) — 195 từ vựng, 35 điểm ngữ pháp, hội thoại/đọc hiểu/nghe/nói/dịch — 100% viết mới |
+| Trạng thái review | MACHINE_REVIEWED (sanity script 0 error + `bun run audit:content` 0 ERROR) |
+
+Ràng buộc biên soạn đã kiểm chứng: term duy nhất toàn khoá; grammar code `i{order}-…`
+không đụng N5; exampleJa chứa term/reading; tokens ghép lại đúng câu gốc; kanji
+nằm trong 119 chữ seed; kana viết tay nằm trong 208 ký tự seed.
+
+Ngày chốt: 2026-09-30 (N5) · 2026-10-01 (Irodori A1).

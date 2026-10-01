@@ -117,6 +117,8 @@ export const TYPE_INSTRUCTION: Record<string, string> = {
 
 export function ChoiceRenderer({ question, draft, setDraft, disabled, feedback }: RendererProps) {
   const d = question.data
+  // Thứ tự options ĐÃ được xáo trộn tại player (displayQuestion) — renderer
+  // render đúng thứ tự nhận được để phím tắt 1-9 khớp ô hiển thị.
   const options = d.options ?? []
   const layout = d.layout ?? 'list'
   const selectedId = draft.optionId
@@ -418,6 +420,17 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
   const [wrongPair, setWrongPair] = useState<string | null>(null)
   const done = draft.pairs ?? {}
   const matchedRights = new Set(Object.values(done))
+  // Xáo trộn CỘT PHẢI mỗi lần vào câu — nếu giữ nguyên thứ tự của cột trái,
+  // người học bấm "chéo" i-i từ trên xuống là ghép đúng toàn bộ mà không cần
+  // đọc nghĩa. Cột trái giữ thứ tự dữ liệu, chỉ xáo cột phải.
+  const [rightOrder] = useState(() => {
+    const idx = pairs.map((_, i) => i)
+    for (let i = idx.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[idx[i], idx[j]] = [idx[j], idx[i]]
+    }
+    return idx
+  })
 
   const pickLeft = (id: string) => {
     if (disabled || feedback || done[id]) return
@@ -460,7 +473,8 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
           })}
         </div>
         <div className="space-y-2.5" role="group" aria-label="Cột nghĩa">
-          {pairs.map((p) => {
+          {rightOrder.map((i) => {
+            const p = pairs[i]
             const isUsed = matchedRights.has(p.right.text)
             return (
               <button

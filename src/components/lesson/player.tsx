@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { DynamicIcon } from '@/components/shared/icon'
+import { Confetti } from '@/components/shared/widgets'
 import {
   AudioChoiceRenderer,
   ChoiceRenderer,
@@ -346,6 +347,30 @@ export function LessonPlayer({
     }
   }, [session, question, qc])
 
+  // Xáo trộn thứ tự lựa chọn hiển thị NGAY TẠI PLAYER — một nguồn sự thật duy nhất
+  // để phím tắt 1-9 và mọi renderer cùng nhìn một thứ tự. Dữ liệu seed thường để
+  // đáp án đúng ở vị trí đầu (90%!) nên bắt buộc phải xáo mỗi lần vào câu. Id
+  // option không đổi → chấm điểm phía server hoàn toàn không ảnh hưởng.
+  const displayQuestion = useMemo<ClientQuestion | null>(() => {
+    if (!question) return null
+    const d = question.data as { kind?: string; options?: { id: string }[] }
+    if (
+      (d.kind === 'choice' || d.kind === 'audio-choice' || d.kind === 'fill-blank') &&
+      Array.isArray(d.options) &&
+      d.options.length > 1
+    ) {
+      const options = [...d.options]
+      for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[options[i], options[j]] = [options[j], options[i]]
+      }
+      // Spread làm mất narrow của union → cast về ClientQuestion (chỉ đổi
+      // THỨ TỰ phần tử trong options, hình dạng dữ liệu không đổi).
+      return { ...question, data: { ...question.data, options } } as ClientQuestion
+    }
+    return question
+  }, [question])
+
   const nextQuestionRef = useRef<ClientQuestion | null>(null)
   const nextPassageRef = useRef<ClientQuestion | null>(null)
 
@@ -362,11 +387,12 @@ export function LessonPlayer({
         if (phase === 'question' || phase === 'feedback') setShowQuit(true)
         return
       }
-      // Phím số chọn nhanh option (chỉ với câu hỏi dạng chọn)
-      if (phase === 'question' && !feedback && /^[1-9]$/.test(e.key) && question) {
-        const kind = question.data.kind
+      // Phím số chọn nhanh option (chỉ với câu hỏi dạng chọn) — đọc từ displayQuestion
+      // (đã xáo trộn) để khớp ĐÚNG ô người dùng đang nhìn thấy trên màn hình.
+      if (phase === 'question' && !feedback && /^[1-9]$/.test(e.key) && displayQuestion) {
+        const kind = displayQuestion.data.kind
         if (kind === 'choice' || kind === 'audio-choice' || kind === 'fill-blank') {
-          const opt = question.data.options?.[Number(e.key) - 1]
+          const opt = displayQuestion.data.options?.[Number(e.key) - 1]
           if (opt) {
             e.preventDefault()
             setDraft({ optionId: opt.id })
@@ -376,7 +402,7 @@ export function LessonPlayer({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phase, canSubmit, submit, next, question, feedback, setDraft])
+  }, [phase, canSubmit, submit, next, displayQuestion, feedback, setDraft])
 
   // Xử lý submit
   const handleSubmit = async () => {
@@ -391,7 +417,7 @@ export function LessonPlayer({
     navigate('/')
   }
 
-  const rendererProps = { question: question!, draft, setDraft, disabled: !!feedback, feedback }
+  const rendererProps = { question: displayQuestion!, draft, setDraft, disabled: !!feedback, feedback }
 
   const instruction =
     TYPE_INSTRUCTION[question?.type ?? ''] ?? question?.prompt ?? 'Trả lời câu hỏi'
@@ -868,47 +894,6 @@ function StatCard({ icon, label, value, tone }: { icon: React.ReactNode; label: 
       <div className="mx-auto mb-1 inline-flex">{icon}</div>
       <p className="text-2xl font-extrabold tabular-nums">{value}</p>
       <p className="text-[11px] font-bold uppercase tracking-wide opacity-70">{label}</p>
-    </div>
-  )
-}
-
-/* ------------------------------- Confetti (hoàn thành) ------------------------------- */
-
-const CONFETTI_COLORS = ['var(--primary)', 'var(--sakura)', 'var(--success)', 'var(--warning)', 'var(--destructive)']
-
-function Confetti({ count = 40 }: { count?: number }) {
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: count }, (_, i) => ({
-        id: i,
-        left: Math.random() * 100,
-        delay: Math.random() * 0.9,
-        duration: 2 + Math.random() * 1.8,
-        size: 5 + Math.random() * 6,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-        rotate: Math.floor(Math.random() * 360),
-        round: Math.random() > 0.65,
-      })),
-    [count]
-  )
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {pieces.map((p) => (
-        <span
-          key={p.id}
-          className="confetti-piece"
-          style={{
-            left: `${p.left}%`,
-            width: p.size,
-            height: p.round ? p.size : p.size * 0.45,
-            background: p.color,
-            borderRadius: p.round ? '9999px' : '2px',
-            animationDelay: `${p.delay}s`,
-            animationDuration: `${p.duration}s`,
-            transform: `rotate(${p.rotate}deg)`,
-          }}
-        />
-      ))}
     </div>
   )
 }

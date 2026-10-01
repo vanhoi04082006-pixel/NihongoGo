@@ -16,6 +16,7 @@ export const GET = route(async (req: NextRequest) => {
       romajiDisplay: settings?.romajiDisplay ?? true,
       autoSpeak: settings?.autoSpeak ?? false,
       reducedMotion: settings?.reducedMotion ?? false,
+      kanaMasteryTarget: settings?.kanaMasteryTarget ?? 10,
     },
   })
 })
@@ -26,6 +27,7 @@ const schema = z.object({
   romajiDisplay: z.boolean().optional(),
   autoSpeak: z.boolean().optional(),
   reducedMotion: z.boolean().optional(),
+  kanaMasteryTarget: z.number().int().min(3).max(50).optional(),
 })
 
 export const PATCH = route(async (req: NextRequest) => {
@@ -33,7 +35,7 @@ export const PATCH = route(async (req: NextRequest) => {
   const user = await requireUser(req)
   const body = schema.safeParse(await readJson(req))
   if (!body.success) throw badRequest('Cài đặt không hợp lệ')
-  const { theme, soundEnabled, romajiDisplay, autoSpeak, reducedMotion } = body.data
+  const { theme, soundEnabled, romajiDisplay, autoSpeak, reducedMotion, kanaMasteryTarget } = body.data
   await db.userSettings.upsert({
     where: { userId: user.id },
     update: {
@@ -42,6 +44,7 @@ export const PATCH = route(async (req: NextRequest) => {
       romajiDisplay: romajiDisplay ?? undefined,
       autoSpeak: autoSpeak ?? undefined,
       reducedMotion: reducedMotion ?? undefined,
+      kanaMasteryTarget: kanaMasteryTarget ?? undefined,
     },
     create: {
       userId: user.id,
@@ -50,6 +53,7 @@ export const PATCH = route(async (req: NextRequest) => {
       romajiDisplay: romajiDisplay ?? true,
       autoSpeak: autoSpeak ?? false,
       reducedMotion: reducedMotion ?? false,
+      kanaMasteryTarget: kanaMasteryTarget ?? 10,
     },
   })
   return ok({ ok: true })

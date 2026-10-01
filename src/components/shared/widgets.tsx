@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { Flame, Heart, Zap, Mountain, Flower2, Swords, Crown, Snowflake, type LucideIcon } from 'lucide-react'
 import { DynamicIcon } from './icon'
@@ -174,6 +175,48 @@ export function PageHeader({ title, sub, icon, actions }: { title: string; sub?:
         </div>
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
+    </div>
+  )
+}
+
+/* --------------------- Confetti (mừng hoàn thành) --------------------- */
+
+const CONFETTI_COLORS = ['var(--primary)', 'var(--sakura)', 'var(--success)', 'var(--warning)', 'var(--destructive)']
+
+/** Pháo giấy mừng hoàn thành — dùng chung cho lesson player + luyện tập kana. */
+export function Confetti({ count = 40 }: { count?: number }) {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: count }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        delay: Math.random() * 0.9,
+        duration: 2 + Math.random() * 1.8,
+        size: 5 + Math.random() * 6,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        rotate: Math.floor(Math.random() * 360),
+        round: Math.random() > 0.65,
+      })),
+    [count]
+  )
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            width: p.size,
+            height: p.round ? p.size : p.size * 0.45,
+            background: p.color,
+            borderRadius: p.round ? '9999px' : '2px',
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            transform: `rotate(${p.rotate}deg)`,
+          }}
+        />
+      ))}
     </div>
   )
 }

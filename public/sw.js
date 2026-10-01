@@ -26,7 +26,10 @@ self.addEventListener('activate', (event) => {
       // Dọn sạch MỌI cache của phiên bản cũ (kể cả v1/v2 cũ lỗi stale)
       .then((keys) => Promise.all(keys.filter((k) => k !== STATIC_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }).then((clients) => clients.forEach((c) => c.navigate(c.url))))
+    // KHÔNG clients.navigate() ở đây: reload trang khi SW cập nhật sẽ (1) mất
+    // state bài học đang làm dở của người dùng, (2) làm mất hash route
+    // (#/login → landing) gây flaky. Chiến lược network-first đảm bảo lần
+    // navigation kế tiếp luôn lấy asset mới — không cần ép reload.
   )
 })
 

@@ -49,3 +49,33 @@ MIXED_REVIEW (ôn trộn + Boss)
    thương mại hóa (đặc biệt mẫu kính ngữ L33-34 và kontekstual nuance của L48-50).
 2. Một số từ vựng xuất hiện ở nhiều bài (spiral review) — chủ đích về mặt sư phạm.
 3. Phát âm TTS do máy sinh — chất lượng tuỳ giọng; có fallback browser speechSynthesis.
+
+---
+
+## Khoá 2 — Irodori A1 (Task 27, 2026-10-01)
+
+> Nguồn truth: `prisma/seed-data/irodori/` · seed: `bun prisma/seed-irodori.ts` (idempotent)
+
+| Chỉ số | Giá trị |
+|---|---|
+| Bài học | **12** (3 section × 4) — 100% PUBLISHED |
+| Node / Exercise / Câu hỏi | 155 / 251 / **946** (74–80 câu/bài) |
+| Từ vựng | **195** (14–19/bài, term duy nhất toàn khoá) |
+| Điểm ngữ pháp | **35** (2–3/bài, code `i{order}-…`, 4–5 drill/điểm) |
+| Kanji luyện viết | 30 mục + 60 kana viết tay (5 ký tự/bài) |
+| Dạng tương tác | 20 loại (thêm DIALOGUE, WORD_BANK, TRANSLATE_JA_VI, KANA_WRITING so với N5) |
+
+Node mỗi bài: VOCAB → VOCAB_PRACTICE → GRAMMAR ×2-3 → LISTENING (5 nghe + 2 dictation)
+→ READING (DIALOGUE + READING passage ×3 câu hỏi) → SENTENCE (order + word bank)
+→ TRANSLATION (VI→JA + JA→VI) → SPEAKING (5 câu) → WRITING (kanji + kana)
+→ MIXED → BOSS (10 câu, requiredScore 80).
+
+Lưu ý vocab trùng N5 (vd わたし, えき): mỗi khoá sở hữu bản ghi riêng
+(seeder không đánh cắp lessonId của khoá khác) — audit WARN trùng term là chủ đích.
+Patch kana-hiragana: thêm **k9 SPEAKING** (8 câu đọc to) + **k10 READING**
+(2 đoạn kana thuần × 4 câu comprehension); k8 BOSS giữ vị trí node cuối (order 10).
+
+Gate chất lượng: sanity script 0 error/0 warn · `bun run audit:content` **0 ERROR** ·
+lint + tsc 0 lỗi · full-seed test DB tạm PASS (2 course, 0 orphan) · chạy lại
+seed 2 lần không nhân bản · E2E grading (MATCHING + CHOICE đúng/sai) qua API PASS.
+

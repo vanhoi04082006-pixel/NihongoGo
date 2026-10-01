@@ -3,6 +3,8 @@
  * - Users: admin + demo (credentials chỉ dùng local dev, xem README)
  * - Course + 7 sections + kana lessons (sinh tự động từ data) + L1/L2/L3 + 47 skeletons
  * - Kana 208, Kanji 31, Achievements, Quests, demo leaderboard users
+ * - Cuối cùng: seed Irodori A1 (khoá 2, 12 bài) + patch k9/k10 cho kana-hiragana
+ *   (idempotent — xem prisma/seed-irodori.ts)
  */
 import { PrismaClient } from '@prisma/client'
 import { randomBytes, scrypt as _scrypt } from 'node:crypto'
@@ -28,6 +30,7 @@ import { lesson2 } from './seed-data/lesson2'
 import { lesson3 } from './seed-data/lesson3'
 import { lessonSkeletons } from './seed-data/skeletons'
 import { curriculumLessons } from './seed-data/curriculum/index'
+import { seedIrodori } from './seed-irodori'
 import type { SeedLesson, SeedNode, SeedQuestion, SeedKanaCharacter } from './seed-data/types'
 
 async function main() {
@@ -131,7 +134,7 @@ async function main() {
     { order: 3, title: 'Mở rộng thế giới', titleJa: 'しょきゅう III', description: 'Khả năng, suy nghĩ, điều kiện, cho & nhận — giao tiếp tự nhiên hơn.' },
     { order: 4, title: 'Sơ cấp II — Ứng dụng', titleJa: 'ちゅうきゅうへ', description: 'Bị động, sai khiến, kính ngữ — tiếng Nhật ứng dụng công việc & đời sống.' },
     { order: 5, title: 'Vững vàng N4', titleJa: 'ひらけたせかい', description: 'Dự đoán, đồn đại, đối lập — chinh phục ngữ pháp JLPT N4 sơ bộ.' },
-    { order: 6, title: 'Tổng kết & JLPT', titleJa: 'そうまっとめ', description: 'Ôn tập tổng hợp, luyện đề, đọc hiểu và hoàn thiện hành trình sơ cấp.' },
+    { order: 6, title: 'Tổng kết & JLPT', titleJa: 'そうまとめ', description: 'Ôn tập tổng hợp, luyện đề, đọc hiểu và hoàn thiện hành trình sơ cấp.' },
   ]
   const sections: { id: string; order: number }[] = []
   for (const s of sectionsData) {
@@ -211,6 +214,10 @@ async function main() {
       day++
     }
   }
+
+  /* ------------------------- Irodori A1 (khoá 2) -------------------------- */
+  // Idempotent: upsert theo slug, chỉ tạo node còn thiếu, vocab không cướp link N5.
+  await seedIrodori(db)
 
   const counts = {
     users: await db.user.count(),

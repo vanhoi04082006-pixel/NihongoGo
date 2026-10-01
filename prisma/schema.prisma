@@ -42,6 +42,7 @@ model User {
   leaderboardEntrys LeaderboardEntry[]
   analyticsEvents   AnalyticsEvent[]
   adminLogs         AdminAuditLog[]
+  kanaProgress      KanaProgress[]
 }
 
 model UserProfile {
@@ -82,6 +83,7 @@ model UserSettings {
   romajiDisplay Boolean  @default(true)
   autoSpeak     Boolean  @default(false)
   reducedMotion Boolean  @default(false)
+  kanaMasteryTarget Int  @default(10) // số lần trả lời đúng để "thành thạo" một ký tự kana
   updatedAt     DateTime @updatedAt
 }
 
@@ -252,9 +254,26 @@ model KanaCharacter {
   exampleReading  String
   exampleMeaning  String
   createdAt       DateTime @default(now())
+  progress        KanaProgress[]
 
   @@unique([character, type])
   @@index([type, kanaGroup])
+}
+
+/** Tiến độ thành thạo từng ký tự kana (server-authoritative: chỉ tăng khi server chấm đúng). */
+model KanaProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kanaId          String
+  kana            KanaCharacter @relation(fields: [kanaId], references: [id], onDelete: Cascade)
+  correctCount    Int      @default(0)
+  wrongCount      Int      @default(0)
+  lastPracticedAt DateTime @default(now())
+  completedAt     DateTime?
+
+  @@unique([userId, kanaId])
+  @@index([userId])
 }
 
 model AudioAsset {
