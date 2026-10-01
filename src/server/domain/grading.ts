@@ -53,10 +53,10 @@ export interface AnswerPayload {
   text?: string
   tokenOrder?: string[]
   pairs?: Record<string, string>
-  /** Speaking: kết quả ASR + điểm similarity đã tính server-side */
+  /** Speaking: transcript từ ASR (browser SpeechRecognition hoặc server). Server TỰ TÍNH điểm
+   *  từ transcript — KHÔNG BAO GIỜ tin điểm do client gửi (anti-cheat). */
   transcription?: string
-  pronunciationScore?: number
-  /** Writing: số nét user vẽ + độ tương đồng hình dạng client tính (heuristic) */
+  /** Writing: số nét user vẽ + độ tương đồng hình dạng client tính (heuristic, công khai trong UI) */
   strokeCount?: number
   shapeSimilarity?: number
 }
@@ -129,8 +129,10 @@ export function gradeAnswer(q: ResolvedQuestion, answer: AnswerPayload): GradeRe
       }
     }
     case 'speak': {
-      // Điểm similarity text (KHÔNG phải chất lượng âm vị) — server đã ASR trước khi gọi hàm này
-      const score = answer.pronunciationScore ?? pronunciationSimilarity(d.speakText, answer.transcription ?? '')
+      // Điểm similarity text (KHÔNG phải chất lượng âm vị) — LUÔN tính server-side từ
+      // transcript. Client chỉ gửi transcript (browser ASR) hoặc audioBase64 (server ASR);
+      // mọi giá trị "điểm" do client tự khai đều bị bỏ qua (anti-cheat).
+      const score = pronunciationSimilarity(d.speakText, answer.transcription ?? '')
       const threshold = 'score' in c && typeof c.score === 'number' ? c.score : d.threshold ?? 65
       return {
         isCorrect: score >= threshold,

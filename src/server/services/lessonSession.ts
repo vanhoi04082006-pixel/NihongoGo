@@ -3,7 +3,6 @@ import { badRequest, conflict, notFound } from '@/lib/api'
 import { gradeAnswer, getPassageSubQuestions, type AnswerPayload, type QuestionDataShape, type CorrectShape, type ResolvedQuestion } from '@/server/domain/grading'
 import { computeLessonXp } from '@/server/domain/xp'
 import { transcribeAudio } from './speech'
-import { pronunciationSimilarity } from '@/lib/japanese'
 import { getHeartConfig } from './config'
 import { getHearts, consumeHeart, grantHeart } from './hearts'
 import { recordMistake, resolveMistakeIfExists } from './mistakes'
@@ -469,22 +468,50 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
 
   const resolved = await resolveEntry(entry)
 
-  // Speaking: ASR phía server rồi mới chấm
+  // Speaking: ASR phía server rồi mới chấm (client có thể tự gửi transcription từ
+  // browser SpeechRecognition — server vẫn TỰ TÍNH điểm, không tin điểm client)
   let enrichedAnswer = answer
   if (resolved.data.kind === 'speak') {
     if (!answer.transcription && typeof (answer as { audioBase64?: string }).audioBase64 === 'string') {
       const audioBase64 = (answer as { audioBase64: string }).audioBase64
       const transcription = await transcribeAudio(audioBase64)
-      const score = pronunciationSimilarity(resolved.data.speakText, transcription)
-      enrichedAnswer = { ...answer, transcription, pronunciationScore: score }
+      enrichedAnswer = { ...answer, transcription }
     }
   }
 
   const result = gradeAnswer(resolved, enrichedAnswer)
   const key = entryKey(entry)
-
-  // Ghi attempt
   const isInline = !!entry.inline
+
+  // Trạng thái (in-memory)
+  if (result.isCorrect) {
+    state.correctKeys.push(key)
+    state.combo++
+    state.maxCombo = Math.max(state.maxCombo, state.combo)
+  } else {
+    state.wrongKeys.push(key)
+    state.combo = 0
+  }
+  state.index++
+
+  // Optimistic lock — GIỮ SLOT TRẢ LỜI trước mọi side-effect (tim/mistake/SRS/quest):
+  // state phải còn nguyên như lúc đọc. Double-submit / 2 tab cùng câu → chỉ 1 request
+  // được ghi, request thua bị từ chối mà KHÔNG tiêu tim hay đếm quest hai lần.
+  const claimed = await db.lessonSession.updateMany({
+    where: { id: session.id, state: session.state },
+    data: {
+      state: JSON.stringify(state),
+      correctCount: state.correctKeys.length,
+      wrongCount: state.wrongKeys.length,
+      maxCombo: state.maxCombo,
+      heartsLeft: session.sessionType === 'LESSON' ? Math.max(0, state.hearts) : 999,
+      status: 'ACTIVE',
+      completedAt: null,
+    },
+  })
+  if (claimed.count === 0) throw conflict('Phiên học đã thay đổi. Hãy tải lại trang và thử lại.')
+
+  // Ghi attempt (sau khi giữ slot thành công)
   await db.exerciseAttempt.create({
     data: {
       sessionId: session.id,
@@ -497,18 +524,7 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
     },
   })
 
-  // Trạng thái
-  if (result.isCorrect) {
-    state.correctKeys.push(key)
-    state.combo++
-    state.maxCombo = Math.max(state.maxCombo, state.combo)
-  } else {
-    state.wrongKeys.push(key)
-    state.combo = 0
-  }
-  state.index++
-
-  // Tim (chỉ mode LESSON)
+  // Tim (chỉ mode LESSON) — consumeHeart có clamp nguyên tử, không bao giờ âm
   let failed = false
   if (session.sessionType === 'LESSON' && result.isCorrect === false) {
     const config = await getHeartConfig()
@@ -518,6 +534,14 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
       if (remaining <= 0) {
         failed = true
       }
+      await db.lessonSession.update({
+        where: { id: session.id },
+        data: {
+          heartsLeft: Math.max(0, state.hearts),
+          status: failed ? 'FAILED' : 'ACTIVE',
+          completedAt: failed ? new Date() : null,
+        },
+      })
     }
   }
 
@@ -552,21 +576,6 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
   await track(result.isCorrect ? 'question_answered' : 'question_wrong', userId, {
     sessionId: session.id,
     type: resolved.type,
-  })
-
-  // Lưu session
-  const newStatus = failed ? 'FAILED' : 'ACTIVE'
-  await db.lessonSession.update({
-    where: { id: session.id },
-    data: {
-      state: JSON.stringify(state),
-      correctCount: state.correctKeys.length,
-      wrongCount: state.wrongKeys.length,
-      maxCombo: state.maxCombo,
-      heartsLeft: session.sessionType === 'LESSON' ? Math.max(0, state.hearts) : 999,
-      status: newStatus,
-      completedAt: failed ? new Date() : null,
-    },
   })
   if (failed) await track('lesson_failed', userId, { sessionId: session.id })
 
@@ -603,7 +612,7 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
       maxCombo: state.maxCombo,
       correctCount: state.correctKeys.length,
       wrongCount: state.wrongKeys.length,
-      status: newStatus,
+      status: failed ? 'FAILED' : 'ACTIVE',
     },
     nextQuestion,
     nextPassage,
@@ -654,6 +663,14 @@ export async function completeSession(userId: string, sessionId: string): Promis
   if (durationMs < state.entries.length * 600) {
     throw badRequest('Phiên học không hợp lệ (thời gian quá ngắn)')
   }
+
+  // Atomic claim — chuyển ACTIVE→COMPLETED trước khi cộng XP/progress: 2 tab cùng bấm
+  // hoàn thành → chỉ MỘT request đi tiếp, request thua nhận conflict (không double-XP).
+  const claimed = await db.lessonSession.updateMany({
+    where: { id: session.id, status: 'ACTIVE' },
+    data: { status: 'COMPLETED', completedAt: new Date(), durationMs, xpEarned: 0 },
+  })
+  if (claimed.count === 0) throw conflict('Phiên học đã được hoàn thành trước đó')
 
   const total = state.entries.length
   const correct = state.correctKeys.length

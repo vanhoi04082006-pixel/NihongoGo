@@ -3,10 +3,8 @@
 # Gates độc lập theo đúng nguyên tắc: lint ≠ typecheck ≠ build
 # (Next.js 16 `next build` KHÔNG tự chạy linter — mỗi gate phải chạy riêng).
 #
-# Ghi chú môi trường sandbox: dự án không có test suite (ràng buộc chính sách
-# môi trường phát triển). Khi bổ sung Vitest/Playwright, thêm job
-# `unit` / `integration` / `e2e` theo cùng khuôn mẫu, dùng service container
-# PostgreSQL bên dưới.
+# Ghi chú: test suite (bun test) gồm unit + integration (tự setup SQLite
+# riêng trong tests/.tmp — db push + seed) chạy ở job `test`.
 #
 # Bảo mật:
 # - permissions tối thiểu (contents: read)
@@ -53,6 +51,17 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Validate nội dung Lesson 4–50
         run: bun scripts/content-validate.ts
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx prisma generate
+      # Unit (pure) + Integration (tự setup SQLite riêng trong tests/.tmp —
+      # db push + seed, không cần service ngoài)
+      - run: bun test
 
   build:
     runs-on: ubuntu-latest

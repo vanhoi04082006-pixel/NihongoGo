@@ -54,7 +54,8 @@ const PUNCT_MAP: Record<string, string> = {
 /**
  * Chuẩn hóa câu tiếng Nhật để so sánh:
  * trim + gộp khoảng trắng, katakana → hiragana, dấu câu Nhật → Latin,
- * fullwidth → halfwidth, lowercase.
+ * fullwidth → halfwidth, lowercase, và BỎ dấu câu ở hai đầu chuỗi
+ * (người dùng gõ "こんにちは。" hoặc " こんにちは " đều khớp "こんにちは").
  */
 export function normalizeJapanese(input: string): string {
   if (!input) return ''
@@ -77,6 +78,8 @@ export function normalizeJapanese(input: string): string {
   }
   out = katakanaToHiragana(out)
   out = out.replace(/\s+/g, '').toLowerCase()
+  // Dấu câu ở hai đầu không tham gia so khớp (。-!?~,;:… và ngoặc)
+  out = out.replace(/^[.\-_,!?~:;()「」『』・]+/, '').replace(/[.\-_,!?~:;()「」『』・]+$/, '')
   return out
 }
 

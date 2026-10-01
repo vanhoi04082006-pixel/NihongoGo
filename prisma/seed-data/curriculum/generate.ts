@@ -254,7 +254,7 @@ export function buildSeedLesson(c: CurriculumLesson): SeedLesson {
 
   /* ---- Question pools (ngân sách: 40–60 câu/bài) ---- */
   const hasKanji = (c.kanji ?? []).length > 0
-  const meaningQs = sample(vocab, Math.min(hasKanji ? 4 : 5, vocab.length)).map((v, i) => makeSelectMeaning(v, vocab, seed + i))
+  const meaningQs = sample(vocab, Math.min(hasKanji ? 8 : 9, vocab.length)).map((v, i) => makeSelectMeaning(v, vocab, seed + i))
   const wordQs = sample(vocab, Math.min(3, vocab.length)).map((v, i) => makeSelectWord(v, vocab, seed + 31 + i))
   const fillQs = sample(vocab, Math.min(6, vocab.length))
     .map((v, i) => makeFillBlank(v, vocab, seed + 61 + i))

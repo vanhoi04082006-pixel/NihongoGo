@@ -65,3 +65,5 @@ server.log
 /db/*.db-journal
 /worklog.md
 prompt
+# Test artifacts (SQLite integration DB)
+tests/.tmp/

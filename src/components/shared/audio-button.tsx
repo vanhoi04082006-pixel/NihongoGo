@@ -2,15 +2,33 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Turtle, Volume2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 /**
- * Chiến lược phát âm tiếng Nhật:
+ * Chiến lược phát âm tiếng Nhật (zero-cost, không phụ thuộc API trả phí):
  * 1) GIỌNG NHẬT TRÌNH DUYỆT (speechSynthesis, lang ja-JP) — phát âm chuẩn nhất
  *    (Chrome/Edge: Google 日本語 / Microsoft Nanami; macOS/iOS: Kyoko; Android: Google Nhật).
- * 2) Nếu trình duyệt không có giọng Nhật → TTS máy chủ (z-ai) làm dự phòng.
- * 3) Cùng lỗi hết → speechSynthesis mặc định (lang ja-JP, không chọn voice).
+ * 2) Nếu trình duyệt không có giọng Nhật → utterance lang=ja-JP không kén voice
+ *    (yêu cầu hệ thống chọn giọng Nhật nếu có) + THÔNG BÁO rõ cho người dùng.
+ *
+ * KHÔNG tự rơi vào TTS server khi thiếu giọng Nhật: các voice server hiện có đều
+ * là giọng Trung đọc kana tiếng Nhật thành âm Hán — dạy sai phát âm, thà không
+ * phát còn hơn. (/api/audio/tts vẫn giữ như provider tùy chọn cho môi trường có
+ * voice Nhật phía server.)
  */
+
+/* Thông báo thiếu giọng Nhật — tối đa 1 lần / 60s để không spam toast */
+let noJaVoiceNotifiedAt = 0
+function notifyNoJapaneseVoice() {
+  const now = Date.now()
+  if (now - noJaVoiceNotifiedAt < 60_000) return
+  noJaVoiceNotifiedAt = now
+  toast.info('Thiết bị chưa có giọng đọc tiếng Nhật', {
+    description: 'Âm thanh có thể không phát hoặc không chuẩn. Hãy dùng Chrome/Edge trên desktop, hoặc cài thêm giọng Nhật (Nhật Bản) trong cài đặt hệ thống.',
+    duration: 6000,
+  })
+}
 
 export function ttsUrl(text: string, speed = 1): string {
   return `/api/audio/tts?text=${encodeURIComponent(text)}&speed=${speed}`
@@ -141,7 +159,7 @@ export function useTtsPlayer() {
       stop()
       if (!text.trim()) return
       setPlaying(true)
-      // 1) Giọng Nhật trình duyệt
+      // 1) Giọng Nhật trình duyệt (zero-cost)
       const spoke = await playBrowserJa(text, speed)
       if (spoke) {
         // Bảo hiểm nếu onend không bắn (một số trình duyệt)
@@ -149,23 +167,15 @@ export function useTtsPlayer() {
         setTimeout(() => setPlaying(false), est)
         return
       }
-      // 2) TTS máy chủ (dự phòng)
-      try {
-        const audio = new Audio(ttsUrl(text, speed))
-        audioRef.current = audio
-        audio.onended = () => setPlaying(false)
-        audio.onerror = async () => {
-          const ok = speakFallback(text, speed)
-          if (!ok) setPlaying(false)
-          else setTimeout(() => setPlaying(false), Math.max(1500, text.length * 180))
-        }
-        await audio.play()
-      } catch {
-        // 3) speechSynthesis không kén voice
-        const ok = speakFallback(text, speed)
+      // 2) Không có giọng Nhật → utterance lang=ja-JP (hệ thống tự chọn nếu có)
+      //    + thông báo rõ (KHÔNG âm thầm phát giọng khác ngôn ngữ)
+      notifyNoJapaneseVoice()
+      const ok = speakFallback(text, speed)
+      if (!ok) {
         setPlaying(false)
-        if (!ok) return
+        return
       }
+      setTimeout(() => setPlaying(false), Math.max(1500, text.length * 180))
     },
     [stop, playBrowserJa]
   )

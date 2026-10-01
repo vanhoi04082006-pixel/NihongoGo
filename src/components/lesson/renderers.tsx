@@ -59,9 +59,9 @@ export interface AnswerDraft {
   pairs?: Record<string, string>
   strokeCount?: number
   shapeSimilarity?: number
-  /** Kết quả nhận diện giọng nói (kind: speak) */
+  /** Kết quả nhận diện giọng nói (kind: speak) — từ browser SpeechRecognition
+   *  hoặc audioBase64 để server ASR. Server TỰ TÍNH điểm từ transcript. */
   transcription?: string
-  pronunciationScore?: number
   audioBase64?: string
 }
 
@@ -489,11 +489,38 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
 
 /* --------------------------------- Speaking -------------------------------- */
 
+/* Web Speech API (zero-cost, không cần API key) — TypeScript DOM lib chưa có
+ * đầy đủ nên khai báo tối giản tại chỗ. */
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>
+}
+interface SpeechRecognitionLike {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  maxAlternatives: number
+  start(): void
+  stop(): void
+  abort(): void
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null
+  onerror: ((e: { error?: string }) => void) | null
+  onend: (() => void) | null
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike
+
+function getBrowserSpeechRecognition(): SpeechRecognitionCtor | null {
+  if (typeof window === 'undefined') return null
+  const w = window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
+}
+
 export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }: RendererProps) {
   const d = question.data
   const [state, setState] = useState<'idle' | 'recording' | 'processing'>('idle')
   const [micError, setMicError] = useState<string | null>(null)
+  const [engine, setEngine] = useState<'browser' | 'server' | null>(null)
   const mediaRef = useRef<MediaRecorder | null>(null)
+  const srRef = useRef<SpeechRecognitionLike | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const [elapsed, setElapsed] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -502,10 +529,67 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
       mediaRef.current?.stream.getTracks().forEach((t) => t.stop())
+      try { srRef.current?.abort() } catch { /* đã dừng */ }
     }
   }, [])
 
-  const startRecording = async () => {
+  const startTimer = () => {
+    setElapsed(0)
+    timerRef.current = setInterval(() => {
+      setElapsed((s) => {
+        if (s >= 9) {
+          stopAll()
+          return s
+        }
+        return s + 1
+      })
+    }, 1000)
+  }
+
+  const stopAll = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    try { srRef.current?.stop() } catch { /* noop */ }
+    if (mediaRef.current && mediaRef.current.state === 'recording') {
+      mediaRef.current.stop()
+    }
+  }
+
+  /* Cấp 1 — browser SpeechRecognition (ja-JP, zero-cost): transcript về thẳng client */
+  const startBrowser = () => {
+    const SR = getBrowserSpeechRecognition()
+    if (!SR) return false
+    try {
+      const rec = new SR()
+      rec.lang = 'ja-JP'
+      rec.continuous = false
+      rec.interimResults = false
+      rec.maxAlternatives = 1
+      rec.onresult = (e) => {
+        const transcript = e.results[0]?.[0]?.transcript?.trim() ?? ''
+        if (transcript) setDraft({ transcription: transcript })
+        else setMicError('Không nghe rõ giọng nói — hãy thử lại.')
+        setState('idle')
+      }
+      rec.onerror = (e) => {
+        srRef.current = null
+        // Lỗi mạng/hoạt ảnh recognizer → tự động chuyển sang ghi âm + ASR server
+        startMediaRecorder()
+      }
+      rec.onend = () => setState((s) => (s === 'recording' ? 'idle' : s))
+      srRef.current = rec
+      setEngine('browser')
+      setMicError(null)
+      rec.start()
+      setState('recording')
+      startTimer()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /* Cấp 2 — MediaRecorder + ASR phía server (tùy chọn, có thể không cấu hình) */
+  const startMediaRecorder = async () => {
     setMicError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -526,31 +610,23 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
         reader.readAsDataURL(blob)
       }
       mediaRef.current = recorder
+      setEngine('server')
       recorder.start()
       setState('recording')
-      setElapsed(0)
-      timerRef.current = setInterval(() => {
-        setElapsed((s) => {
-          if (s >= 9) {
-            stopRecording()
-            return s
-          }
-          return s + 1
-        })
-      }, 1000)
+      startTimer()
     } catch {
       setMicError('Không truy cập được micro. Hãy cấp quyền cho trình duyệt, hoặc bấm "Bỏ qua" bên dưới.')
+      setState('idle')
     }
   }
 
-  const stopRecording = () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    if (mediaRef.current && mediaRef.current.state === 'recording') {
-      mediaRef.current.stop()
-    }
+  const startRecording = async () => {
+    setState('idle')
+    setDraft({ transcription: undefined, audioBase64: undefined })
+    if (!startBrowser()) await startMediaRecorder()
   }
 
-  const hasAudio = !!draft.audioBase64
+  const hasAudio = !!draft.audioBase64 || !!draft.transcription
 
   return (
     <div className="space-y-6">
@@ -578,7 +654,7 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
         )}
         {state === 'recording' && (
           <button
-            onClick={stopRecording}
+            onClick={stopAll}
             className="relative inline-flex h-20 w-20 items-center justify-center rounded-full bg-destructive text-white shadow-lg shadow-destructive/30 outline-none focus-visible:ring-2 focus-visible:ring-ring hover:scale-105 active:scale-95"
             aria-label="Dừng ghi âm"
           >
@@ -594,11 +670,11 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
 
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {state === 'recording'
-            ? `Đang ghi… ${elapsed}s (tối đa 10s)`
+            ? `Đang nghe… ${elapsed}s (tối đa 10s)`
             : state === 'processing'
               ? 'Đang xử lý giọng nói…'
               : hasAudio
-                ? 'Đã ghi âm xong — bấm Kiểm tra để chấm điểm'
+                ? 'Đã ghi nhận giọng đọc — bấm Kiểm tra để chấm điểm'
                 : 'Bấm nút micro và đọc to câu trên'}
         </p>
 
@@ -606,7 +682,7 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
 
         {!hasAudio && (
           <button
-            onClick={() => setDraft({ audioBase64: undefined, text: '__skip__' })}
+            onClick={() => setDraft({ audioBase64: undefined, transcription: undefined, text: '__skip__' })}
             disabled={disabled || !!feedback}
             className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 outline-none"
           >
@@ -623,6 +699,9 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
               {feedback.score ?? 0}/100
             </span>
           </div>
+          {feedback && engine && (
+            <p className="text-[10px] text-muted-foreground">{engine === 'browser' ? 'Nhận diện tại trình duyệt (Web Speech API)' : 'Nhận diện qua máy chủ'}</p>
+          )}
           <div className="h-2.5 rounded-full bg-muted overflow-hidden">
             <div
               className={cn('h-full rounded-full transition-all', feedback.correct ? 'bg-success' : 'bg-destructive')}

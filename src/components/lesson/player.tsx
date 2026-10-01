@@ -205,7 +205,7 @@ export function LessonPlayer({
       case 'matching':
         return Object.keys(draft.pairs ?? {}).length === (d.pairs?.length ?? 0)
       case 'speak':
-        return !!draft.audioBase64 || draft.text === '__skip__'
+        return !!draft.audioBase64 || !!draft.transcription || draft.text === '__skip__'
       case 'writing':
         return (draft.strokeCount ?? 0) > 0
       default:
@@ -233,8 +233,8 @@ export function LessonPlayer({
     try {
       const answerPayload: AnswerDraft = writingAnswer ? { ...draft, ...writingAnswer } : { ...draft }
       if (question.data.kind === 'speak' && draft.text === '__skip__') {
+        // Bỏ qua: transcript rỗng → server tự tính điểm 0 (không tin điểm client)
         answerPayload.transcription = ''
-        answerPayload.pronunciationScore = 0
         delete answerPayload.text
       }
       const res = await api<AnswerResponse>(`/api/lesson-sessions/${session.id}/answer`, {

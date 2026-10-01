@@ -36,12 +36,22 @@ export async function getHearts(userId: string): Promise<HeartState> {
 export async function consumeHeart(userId: string): Promise<number> {
   const config = await getHeartConfig()
   if (!config.enabled) return Infinity as unknown as number
-  const row = await db.userHeart.upsert({
-    where: { userId },
-    update: { hearts: { decrement: 1 }, updatedAt: new Date() },
-    create: { userId, hearts: config.maxHearts - 1, maxHearts: config.maxHearts },
+  // Atomic clamp: chỉ trừ khi hearts > 0 — không bao giờ âm dù có race song song.
+  const claimed = await db.userHeart.updateMany({
+    where: { userId, hearts: { gt: 0 } },
+    data: { hearts: { decrement: 1 }, updatedAt: new Date() },
   })
-  return Math.max(0, row.hearts)
+  if (claimed.count === 0) {
+    // Chưa có hàng HOẶC đã hết tim → đảm bảo hàng tồn tại và trả 0
+    const row = await db.userHeart.upsert({
+      where: { userId },
+      update: { hearts: 0 },
+      create: { userId, hearts: 0, maxHearts: config.maxHearts },
+    })
+    return Math.max(0, row.hearts)
+  }
+  const row = await db.userHeart.findUnique({ where: { userId } })
+  return Math.max(0, row?.hearts ?? 0)
 }
 
 /** Hoàn thành luyện tập → +1 tim (tối đa max). */

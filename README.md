@@ -89,11 +89,25 @@ bun run dev
 | `bun run setup` | Thiết lập 1 lệnh: .env + db + Prisma + seed |
 | `bun run dev` | Dev server (port 3000) |
 | `bun run lint` | ESLint |
+| `bun test` | Test suite (61 unit + 20 integration — integration tự setup SQLite riêng trong `tests/.tmp`, không đụng DB dev) |
+| `bun run audit:content` | Audit DB content: số liệu thật + question quality theo type + exercise 0 câu + orphan (exit 1 nếu ERROR) |
 | `bun run db:push` | Đẩy schema Prisma xuống database |
-| `bun run db:seed` | Seed dữ liệu |
+| `bun run db:seed` | Seed dữ liệu (idempotent với users/progress) |
 | `bun run db:migrate` | Tạo migration (dev) |
 | `bun run build` | Production build |
 | `bun run start` | Chạy production server |
+
+## Kiểm thử & chất lượng nội dung
+
+- **Unit tests** (`tests/unit/`): japanese normalizer, grading engine (mọi dạng bài + anti-cheat: server không tin điểm client), datetime/XP, CSRF helpers. Pure functions, không cần DB.
+- **Integration tests** (`tests/integration/`): gọi route handlers thật (register/login/logout/me, CSRF/origin 2 chiều, RBAC USER→admin 403, tạo phiên học + trả lời theo đáp án thật từ DB, hearts không âm, XP ledger, double-complete, optimistic-lock) trên SQLite riêng tự sinh.
+- **Content validator** (`scripts/content-validate.ts`): chạy trong CI — validate 47 file curriculum + generated questions (kể cả rule exercise 0 câu hỏi = FAIL).
+- **DB audit** (`scripts/audit-content.ts`): số liệu thật từ database (lesson/node/exercise/question/vocab/grammar/kanji/kana), question quality theo type, renderer coverage, orphan — dùng `--json` cho CI.
+
+## Âm thanh & giọng nói (zero-cost)
+
+- **TTS tiếng Nhật**: dùng giọng Nhật của trình duyệt (Web Speech API, Chrome/Edge/Safari đều có) — không cần API trả phí. Thiếu giọng Nhật → thông báo rõ, **không** phát giọng khác ngôn ngữ.
+- **Luyện nói**: ưu tiên Web Speech Recognition (ja-JP) tại trình duyệt; nếu không có → ghi âm + ASR máy chủ (provider tùy chọn). Điểm là **text similarity** giữa transcript và câu mẫu — KHÔNG phải đánh giá âm vị học (hiển thị trung thực trong UI).
 
 ## Chuyển sang PostgreSQL (production)
 

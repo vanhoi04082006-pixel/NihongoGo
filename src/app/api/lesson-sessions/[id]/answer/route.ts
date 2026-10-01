@@ -13,7 +13,7 @@ const schema = z.object({
       tokenOrder: z.array(z.string().max(50)).max(20).optional(),
       pairs: z.record(z.string().max(50), z.string().max(200)).optional(),
       transcription: z.string().max(500).optional(),
-      pronunciationScore: z.number().min(0).max(100).optional(),
+      // KHÔNG nhận pronunciationScore từ client — server tự tính từ transcript (anti-cheat)
       strokeCount: z.number().int().min(0).max(50).optional(),
       shapeSimilarity: z.number().min(0).max(100).optional(),
       audioBase64: z.string().max(8_000_000).optional(),

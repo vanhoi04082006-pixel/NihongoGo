@@ -540,10 +540,10 @@ function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boole
         )}
       </button>
 
-      {/* Label */}
-      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:block pointer-events-none">
-        <p className={cn('text-sm font-bold whitespace-nowrap', isLocked && 'text-muted-foreground')}>{node.title}</p>
-        <p className="text-[11px] text-muted-foreground whitespace-nowrap">
+      {/* Label — max-w + truncate để tiêu đề dài không tràn ngang viewport */}
+      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:block pointer-events-none max-w-[200px]">
+        <p className={cn('text-sm font-bold truncate', isLocked && 'text-muted-foreground')}>{node.title}</p>
+        <p className="text-[11px] text-muted-foreground truncate">
           {isLocked ? (node.status === 'DRAFT' ? 'Sắp ra mắt' : 'Đang khóa') : `${node.exerciseCount} bài tập · ${node.xpReward} XP`}
         </p>
       </div>

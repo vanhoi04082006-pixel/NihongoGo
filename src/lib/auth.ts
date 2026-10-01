@@ -8,7 +8,17 @@ const scrypt = promisify(_scrypt) as (p: string, s: string, k: number) => Promis
 
 export const SESSION_COOKIE = 'ngg_session'
 const SESSION_DAYS = 30
-const PEPPER = process.env.AUTH_SECRET ?? 'nihongogo-dev-secret-change-me'
+const DEV_PEPPER = 'nihongogo-dev-secret-change-me'
+const PEPPER = process.env.AUTH_SECRET ?? DEV_PEPPER
+
+// Production phải đặt AUTH_SECRET riêng — cảnh báo lớn ngay khi boot (không im lặng
+// dùng pepper dev làm остальные hash session dễ đoán hơn).
+if (process.env.NODE_ENV === 'production' && (!process.env.AUTH_SECRET || process.env.AUTH_SECRET === DEV_PEPPER || process.env.AUTH_SECRET === 'please-change-me')) {
+  console.warn(
+    '[auth] CẢNH BÁO: AUTH_SECRET chưa được đặt (hoặc còn giá trị mẫu) trong chế độ production. ' +
+    'Tạo chuỗi ngẫu nhiên bằng `openssl rand -hex 32` và đặt vào biến môi trường trước khi triển khai thật.'
+  )
+}
 
 /* ------------------------------- Passwords -------------------------------- */
 

@@ -137,13 +137,16 @@ async function main() {
     if (boss && boss.requiredScore !== 80) err(`${L}: BOSS requiredScore phải = 80`)
     const totalQ = gen.nodes.reduce((s, n) => s + n.exercises.reduce((s2, e) => s2 + e.questions.length, 0), 0)
     if (totalQ < 40) err(`${L}: chỉ ${totalQ} câu hỏi (<40)`)
-    if (totalQ > 60) warn(`${L}: ${totalQ} câu hỏi (>60)`)
+    if (totalQ > 70) warn(`${L}: ${totalQ} câu hỏi (>70)`)
     const typeSet = new Set<string>()
     for (const node of gen.nodes) {
+      if (!node.exercises.length) err(`${L}: node ${node.key} không có exercise nào`)
       for (const ex of node.exercises) {
+        // Exercise PUBLISHED mà 0 câu hỏi = dead content (regression L11–50 cũ:
+        // "Ôn lại nghĩa từ" rỗng do meaningQs.slice(4) hết câu) — phải là ERROR.
+        if (!ex.questions.length) err(`${L}: node ${node.key} exercise "${ex.instructions ?? ex.type}" (${ex.type}) KHÔNG CÓ CÂU HỎI NÀO`)
         for (const q of ex.questions) { typeSet.add(q.type); validateQuestion(q, `${L} node ${node.key}`) }
       }
-      if (!node.exercises.length) err(`${L}: node ${node.key} không có exercise nào`)
     }
     if (typeSet.size < 10) warn(`${L}: chỉ ${typeSet.size} dạng tương tác (<10)`)
     const vocabKeys = new Set(gen.vocabulary.map((v) => v.term))
