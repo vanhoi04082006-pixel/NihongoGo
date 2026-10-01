@@ -53,7 +53,12 @@ export function route<Ctx>(fn: (req: NextRequest, ctx: Ctx) => Promise<Response>
  * 1. Origin khớp hostname với Host / X-Forwarded-Host / URL nội bộ → cho qua
  *    (cookie không phân biệt port nên hostname là ranh giới CSRF thực tế).
  * 2. Origin là localhost → cho qua (preview/QA chạy trực tiếp trên sandbox).
- * 3. Proxy rewrite Host (mất dấu hostname gốc) → double-submit token:
+ * 3. Sec-Fetch-Site: same-origin → cho qua. Đây là header cấm (forbidden) —
+ *    JavaScript ở trang lạ KHÔNG THỂ giả mạo; trình duyệt chỉ ghi "same-origin"
+ *    khi request xuất phát từ chính origin của URL đích. Vượt qua được tình
+ *    huống proxy rewrite Host (Origin: preview-chat-*.space-z.ai nhưng Host
+ *    lại là hostname nội bộ của gateway).
+ * 4. Proxy rewrite Host (mất dấu hostname gốc) → double-submit token:
  *    header x-csrf-token phải khớp cookie ngg_csrf. Chính trang web của ta set
  *    cả hai; site lạ không thể set cookie cho domain ta hay gửi custom header
  *    cross-origin (bị CORS preflight chặn) → không thể giả mạo.
@@ -91,6 +96,11 @@ export function assertSameOrigin(req: NextRequest) {
   if (candidates.has(originHostname)) return
   if (LOCAL_HOSTNAMES.has(originHostname)) return
 
+  // Trình duyệt hiện đại xác nhận request xuất phát từ chính origin của URL đích —
+  // tín hiệu đáng tin hơn cả so khớp Origin/Host vì miễn nhiễm với proxy rewrite Host.
+  const secFetchSite = req.headers.get('sec-fetch-site')
+  if (secFetchSite === 'same-origin') return
+
   const headerToken = req.headers.get(CSRF_HEADER)
   const cookieToken = req.cookies.get(CSRF_COOKIE)?.value
   if (headerToken && cookieToken && headerToken.length >= 16 && headerToken === cookieToken) return
@@ -100,8 +110,13 @@ export function assertSameOrigin(req: NextRequest) {
     host: req.headers.get('host'),
     xForwardedHost: req.headers.get('x-forwarded-host'),
     nextUrlHost: req.nextUrl.host,
+    secFetchSite,
+    hasHeaderToken: Boolean(headerToken),
+    hasCookieToken: Boolean(cookieToken),
   })
-  throw forbidden('Yêu cầu không hợp lệ (origin)')
+  throw forbidden(
+    'Không xác thực được yêu cầu. Nếu bạn đang xem trong khung nhúng, hãy mở ứng dụng ở tab mới rồi thử lại.'
+  )
 }
 
 export function clientIp(req: NextRequest): string {

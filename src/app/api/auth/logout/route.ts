@@ -7,6 +7,6 @@ export const POST = route(async (req: NextRequest) => {
   const token = getSessionToken(req)
   if (token) await destroySession(token)
   const res = ok({ ok: true })
-  clearSessionCookie(res)
+  clearSessionCookie(res, req)
   return res
 })

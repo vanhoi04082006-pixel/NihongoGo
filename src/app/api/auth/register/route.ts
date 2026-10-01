@@ -33,6 +33,6 @@ export const POST = route(async (req: NextRequest) => {
       },
     },
   })
-  setSessionCookie(res, session.token, session.expiresAt)
+  setSessionCookie(res, session.token, session.expiresAt, req)
   return res
 })

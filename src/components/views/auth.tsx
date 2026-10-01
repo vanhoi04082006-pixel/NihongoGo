@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, ExternalLink, TriangleAlert } from 'lucide-react'
 import { useHashRoute } from '@/components/app/router'
 import { useAuthActions } from '@/components/app/use-auth'
 import { LogoFull } from '@/components/app/logo'
@@ -33,6 +33,49 @@ const registerSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 type RegisterForm = z.infer<typeof registerSchema>
+
+/** Thử ghi+đọc+xóa một cookie tạm — nếu thất bại nghĩa là trình duyệt đang chặn cookie. */
+function cookiesBlocked(): boolean {
+  try {
+    const name = `__ngg_ck_test_${Date.now()}`
+    document.cookie = `${name}=1; path=/; max-age=60`
+    const ok = document.cookie.includes(name)
+    document.cookie = `${name}=; path=/; max-age=0`
+    return !ok
+  } catch {
+    return true
+  }
+}
+
+/**
+ * Chẩn đoán chủ động: app đang nhúng trong iframe (Preview Panel) và cookie bị
+ * trình duyệt chặn hoàn toàn (Safari/ITP hoặc Chrome chặn third-party cứng).
+ * Lúc đó đăng nhập sẽ không giữ được phiên — báo trước thay vì để người dùng
+ * "đăng nhập mãi không được" mà không hiểu lý do.
+ */
+function useCookieWarning() {
+  const [blocked, setBlocked] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    // Sau hydrate (microtask) mới chẩn đoán — tránh setState đồng bộ trong effect
+    // và tránh hydration mismatch giữa server (luôn ẩn) và client.
+    queueMicrotask(() => {
+      if (cancelled) return
+      const inIframe = (() => {
+        try {
+          return window.self !== window.top
+        } catch {
+          return true // cross-origin iframe throws khi truy cập window.top
+        }
+      })()
+      if (inIframe) setBlocked(cookiesBlocked())
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  return blocked
+}
 
 export function AuthView({ mode }: { mode: 'login' | 'register' }) {
   const { navigate } = useHashRoute()
@@ -65,6 +108,7 @@ export function AuthView({ mode }: { mode: 'login' | 'register' }) {
   })
 
   const busy = login.isPending || registerAction.isPending
+  const cookieBlocked = useCookieWarning()
   const loginErrors = loginForm.formState.errors
   const registerErrors = registerForm.formState.errors
   // Truy cập qua key động để giữ type an toàn giữa 2 form
@@ -99,6 +143,25 @@ export function AuthView({ mode }: { mode: 'login' | 'register' }) {
             </div>
           </div>
           <div className="rounded-3xl border bg-card shadow-xl shadow-primary/5 p-7 sm:p-9">
+            {cookieBlocked && (
+              <div
+                role="status"
+                className="mb-6 flex gap-3 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3.5 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-200"
+              >
+                <TriangleAlert className="mt-0.5 h-4.5 w-4.5 shrink-0" aria-hidden />
+                <div className="space-y-2">
+                  <p className="font-semibold">Trình duyệt đang chặn cookie trong khung xem trước</p>
+                  <p className="leading-relaxed">
+                    Bạn vẫn có thể xem ứng dụng, nhưng tài khoản và tiến độ sẽ không được lưu. Hãy bấm
+                    nút{' '}
+                    <span className="inline-flex items-center gap-1 font-semibold">
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Open in New Tab
+                    </span>{' '}
+                    phía trên bảng xem trước, rồi đăng nhập ở tab mới.
+                  </p>
+                </div>
+              </div>
+            )}
             <h1 className="text-2xl font-bold tracking-tight">
               {isRegister ? 'Tạo tài khoản NihongoGo' : 'Đăng nhập'}
             </h1>

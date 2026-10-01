@@ -39,13 +39,20 @@ function randomToken(): string {
 /**
  * Double-submit CSRF token: cookie không HttpOnly + header cùng giá trị.
  * Đọc lại cookie ở mỗi request (không cache) để nhiều tab không bị lệch nhau.
+ *
+ * LƯU Ý SameSite: khi app chạy trong iframe (Preview Panel nhúng trên giao diện
+ * chat) thì trình duyệt ở ngữ cảnh third-party — cookie SameSite=Lax bị chặn
+ * hoàn toàn, gây 403 ở mọi mutation. Trên HTTPS phải dùng "SameSite=None; Secure"
+ * thì cookie mới được set/gửi trong iframe; trên http://localhost giữ Lax.
  */
 function ensureCsrfToken(): string {
   if (typeof document === 'undefined') return ''
   const existing = readCookie(CSRF_COOKIE)
   if (existing && existing.length >= 16) return existing
   const token = randomToken()
-  document.cookie = `${CSRF_COOKIE}=${token}; path=/; max-age=31536000; samesite=lax`
+  const isHttps = typeof location !== 'undefined' && location.protocol === 'https:'
+  const attrs = isHttps ? 'path=/; max-age=31536000; samesite=none; secure' : 'path=/; max-age=31536000; samesite=lax'
+  document.cookie = `${CSRF_COOKIE}=${token}; ${attrs}`
   return token
 }
 

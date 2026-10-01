@@ -141,16 +141,45 @@ export async function requireRole(req: NextRequest, roles: string[]): Promise<Au
 
 /* -------------------------------- Cookies --------------------------------- */
 
-export function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
+/**
+ * Phát hiện kết nối HTTPS xuyên qua chuỗi proxy (browser https → gateway →
+ * localhost http). Dùng nhiều tín hiệu vì nextUrl.protocol ở sandbox luôn là
+ * http: dù người dùng thực sự đang duyệt bằng https.
+ */
+export function isHttpsRequest(req: NextRequest): boolean {
+  const xfProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
+  if (xfProto) return xfProto === 'https'
+  if (req.nextUrl.protocol === 'https:') return true
+  // Origin https://... do chính trình duyệt sinh ra — đáng tin cậy
+  const origin = req.headers.get('origin')
+  if (origin?.startsWith('https://')) return true
+  return false
+}
+
+/**
+ * Session cookie. Khi người dùng duyệt bằng HTTPS (kể cả trong iframe Preview
+ * Panel — ngữ cảnh third-party), bắt buộc SameSite=None; Secure nếu không
+ * trình duyệt sẽ lặng lẽ bỏ Set-Cookie → đăng nhập "thành công" nhưng mất
+ * phiên ngay lập tức. Trên http://localhost giữ Lax cho đơn giản.
+ */
+export function setSessionCookie(res: NextResponse, token: string, expiresAt: Date, req?: NextRequest) {
+  const https = req ? isHttpsRequest(req) : false
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: https ? 'none' : 'lax',
+    secure: https,
     path: '/',
     expires: expiresAt,
   })
 }
 
-export function clearSessionCookie(res: NextResponse) {
-  res.cookies.set(SESSION_COOKIE, '', { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 0 })
+export function clearSessionCookie(res: NextResponse, req?: NextRequest) {
+  const https = req ? isHttpsRequest(req) : false
+  res.cookies.set(SESSION_COOKIE, '', {
+    httpOnly: true,
+    sameSite: https ? 'none' : 'lax',
+    secure: https,
+    path: '/',
+    maxAge: 0,
+  })
 }
