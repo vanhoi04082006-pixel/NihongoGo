@@ -1,0 +1,36 @@
+# NihongoGo — Production overrides (dùng kèm compose.yaml)
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d
+#
+# Khác biệt so với base:
+# - restart: always (tự sống lại sau reboot VM)
+# - app không expose cổng trực tiếp (đặt reverse proxy phía trước)
+# - bỏ healthcheck start_period dài, log rotation
+
+services:
+  app:
+    restart: always
+    ports: !override []
+    expose:
+      - "3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  minio:
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

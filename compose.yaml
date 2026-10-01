@@ -1,0 +1,138 @@
+# NihongoGo — Docker Compose (self-host toàn-stack, 0 phụ thuộc trả phí)
+#
+# Cách dùng:
+#   docker compose up -d                          # app + postgres + minio
+#   docker compose --profile redis up -d          # thêm Redis (rate-limit phân tán)
+#   docker compose --profile observability up -d  # thêm Prometheus + Grafana
+#
+# LƯU Ý QUAN TRỌNG (trung thực về giới hạn):
+# - App hiện đang dùng SQLite trong image. Muốn dùng PostgreSQL của stack này:
+#   1) Đổi provider trong prisma/schema.prisma thành "postgresql"
+#   2) Build lại image, đặt DATABASE_URL=postgresql://...
+#   3) Chạy migrate + seed (xem docs/PRODUCTION_RUNBOOK.md)
+# - Single-node MinIO KHÔNG phải HA — đủ cho demo/personal, không dành cho production thương mại.
+# - Một VM duy nhất = không có high availability.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET:?Đặt AUTH_SECRET trong .env (chuỗi ngẫu nhiên dài)}
+      DATABASE_URL: ${DATABASE_URL:-file:/app/db/custom.db}
+      # Redis (bật khi chạy --profile redis và muốn rate-limit phân tán)
+      REDIS_URL: ${REDIS_URL:-}
+      # S3/MinIO (tùy chọn — lưu audio TTS dài hạn nếu cấu hình)
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-nihongogo}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-nihongogo}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Đặt S3_SECRET_KEY trong .env}
+      S3_FORCE_PATH_STYLE: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - app_data:/app/db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nihongogo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: ${POSTGRES_DB:-nihongogo}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nihongogo} -d ${POSTGRES_DB:-nihongogo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # KHÔNG publish cổng ra ngoài trừ khi cần thiết
+    expose:
+      - "5432"
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-nihongogo}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?Đặt S3_SECRET_KEY trong .env}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    expose:
+      - "9000"
+      - "9001"
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-nihongogo} ${S3_SECRET_KEY} &&
+        mc mb --ignore-existing local/${S3_BUCKET:-nihongogo} &&
+        echo 'MinIO bucket ready'
+      "
+
+  # ---- Profile tùy chọn ----
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    profiles: ["redis"]
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    profiles: ["observability"]
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+
+volumes:
+  app_data:
+  postgres_data:
+  minio_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
