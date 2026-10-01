@@ -30,6 +30,34 @@ export function errorResponse(e: unknown) {
       { status: e.status }
     )
   }
+  // Lỗi Prisma thường gặp khi clone repo về chưa khởi tạo database
+  // (vd: `bun run dev` mà chưa từng chạy setup) — trả thông báo chỉ rõ
+  // cách sửa thay vì lỗi 500 "Đã có lỗi máy chủ" gây bối rối.
+  const prismaCode = (e as { code?: string } | null)?.code
+  if (prismaCode === 'P2021' || prismaCode === 'P2022') {
+    console.error('[api] Database chưa khởi tạo hoặc lệch schema:', prismaCode)
+    return NextResponse.json(
+      {
+        error: {
+          code: 'DB_NOT_INITIALIZED',
+          message:
+            'Cơ sở dữ liệu chưa được khởi tạo. Hãy dừng server (Ctrl+C) rồi chạy lại `bun run dev` — hệ thống sẽ tự khởi tạo database lần đầu (hoặc chạy `bun run setup`), sau đó thử lại.',
+        },
+      },
+      { status: 503 }
+    )
+  }
+  if (prismaCode === 'P2002') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'CONFLICT',
+          message: 'Dữ liệu vừa bị trùng (đã có ai đó tạo trước bạn). Tải lại trang rồi thử lại.',
+        },
+      },
+      { status: 409 }
+    )
+  }
   console.error('[api] Unhandled error:', e)
   return NextResponse.json(
     { error: { code: 'INTERNAL', message: 'Đã có lỗi máy chủ. Vui lòng thử lại.' } },
@@ -115,7 +143,7 @@ export function assertSameOrigin(req: NextRequest) {
     hasCookieToken: Boolean(cookieToken),
   })
   throw forbidden(
-    'Không xác thực được yêu cầu. Nếu bạn đang xem trong khung nhúng, hãy mở ứng dụng ở tab mới rồi thử lại.'
+    'Không xác thực được yêu cầu (origin). Nếu bạn đang xem trong khung nhúng, hãy mở ứng dụng ở tab mới rồi thử lại.'
   )
 }
 

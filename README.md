@@ -42,12 +42,17 @@ Kiến trúc chi tiết: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 # 1. Cài dependencies
 bun install
 
-# 2. Thiết lập toàn bộ: .env + database + Prisma Client + seed dữ liệu học
-bun run setup
-
-# 3. Chạy dev server
+# 2. Chạy dev server — chỉ vậy là đủ!
 bun run dev
 # → http://localhost:3000
+```
+
+**Lần chạy đầu tiên**, `bun run dev` tự động phát hiện database chưa có và tự khởi tạo (.env → Prisma Client → tạo schema → seed 52 bài học, mất ~1–2 phút), rồi mới khởi động server. Các lần sau bỏ qua bước này và khởi động ngay.
+
+Nếu muốn khởi tạo thủ công (không chạy dev):
+
+```bash
+bun run setup
 ```
 
 `bun run setup` tự động: tạo `.env` từ `.env.example` (giữ nguyên `.env` nếu đã có), tạo thư mục `db/`, chạy `prisma generate` + `prisma db push`, seed toàn bộ nội dung học (52 bài, ~3.283 câu hỏi, 876 từ vựng, 137 ngữ pháp, 119 kanji, 208 kana, achievements, quests, users mẫu).
