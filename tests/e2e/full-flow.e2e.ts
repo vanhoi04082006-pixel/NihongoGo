@@ -204,7 +204,7 @@ test('2) Đăng xuất rồi đăng nhập lại', async ({ page }) => {
 test('3) Học bài mẫu (node kana đầu tiên) — trả lời đúng toàn bộ', async ({ page }) => {
   await apiLogin(page)
   await page.goto('/')
-  await expect(page.getByText(/Hành trình của bạn/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('button[aria-label="Chọn khóa học"]')).toBeVisible({ timeout: 30_000 })
 
   // Mở ải đầu tiên đang sẵn sàng (bong bóng "Bắt đầu")
   await page.locator('button[aria-label*="sẵn sàng"]').first().click()
@@ -214,7 +214,7 @@ test('3) Học bài mẫu (node kana đầu tiên) — trả lời đúng toàn 
 
   // Về Learning Path từ màn tổng kết
   await page.getByRole('button', { name: /Tiếp tục hành trình/ }).click()
-  await expect(page.getByText(/Hành trình của bạn/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator('button[aria-label="Chọn khóa học"]')).toBeVisible({ timeout: 20_000 })
 
   // Node k1 đã hoàn thành trong DB
   const done = await db.nodeProgress.findFirst({
@@ -230,7 +230,7 @@ test('3) Học bài mẫu (node kana đầu tiên) — trả lời đúng toàn 
 test('4) Test-out "Nhảy tới đây?" — vượt bài kiểm tra, mở khóa + đánh dấu bài trước', async ({ page }) => {
   await apiLogin(page)
   await page.goto('/')
-  await expect(page.getByText(/Hành trình của bạn/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('button[aria-label="Chọn khóa học"]')).toBeVisible({ timeout: 30_000 })
 
   // Nút "Nhảy tới đây?" ở bài 2 (đang khóa)
   const jumpBtn = page.locator('button[aria-label^="Bỏ qua tới bài 2"]').first()
@@ -242,7 +242,7 @@ test('4) Test-out "Nhảy tới đây?" — vượt bài kiểm tra, mở khóa 
   expect(n).toBeLessThanOrEqual(10)
 
   await page.getByRole('button', { name: /Về Learning Path/ }).click()
-  await expect(page.getByText(/Hành trình của bạn/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator('button[aria-label="Chọn khóa học"]')).toBeVisible({ timeout: 20_000 })
 
   // TOÀN BỘ node của bài 1 được đánh dấu hoàn thành (kể cả chưa học)
   const lesson1 = await db.lesson.findFirst({

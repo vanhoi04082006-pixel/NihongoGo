@@ -1,17 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake, Rocket, CalendarDays, BookMarked, ChevronUp } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import {
+  Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake,
+  Rocket, CalendarDays, BookMarked, ChevronUp, ChevronDown, ChevronRight, Map as MapIcon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
 import { useOverview } from '@/components/app/use-overview'
 import { DynamicIcon } from '@/components/shared/icon'
-import { LoadingBlock, ErrorBlock, EmptyBlock, XPBadge, LeagueBadge } from '@/components/shared/widgets'
+import { LoadingBlock, ErrorBlock, XPBadge, LeagueBadge } from '@/components/shared/widgets'
 import { AudioButton } from '@/components/shared/audio-button'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +57,6 @@ interface LessonDTO {
   title: string
   titleJa: string
   description: string
-  difficulty: string
   status: string
   state: 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED'
   totalNodes: number
@@ -102,7 +107,6 @@ const COURSE_STORAGE_KEY = 'ngg:course'
 
 export function LearnView() {
   const { navigate } = useHashRoute()
-  const qc = useQueryClient()
   // Khoá đang chọn (lưu localStorage) — rỗng = khoá mặc định (order nhỏ nhất).
   const [courseSlug, setCourseSlug] = useState<string>('')
   useEffect(() => {
@@ -139,15 +143,20 @@ export function LearnView() {
   })
   const { data: overview } = useOverview()
   const courseList = coursesData?.courses ?? []
-  const [practiceMenuFor, setPracticeMenuFor] = useState<NodeDTO | null>(null)
   const [jumpTarget, setJumpTarget] = useState<LessonDTO | null>(null)
   const [celebrateNodeId, setCelebrateNodeId] = useState<string | null>(null)
   const celebrateCheckedOnce = useRef(false)
   const celebrateFlag = useRef<{ nodeId: string; nodeStatus: string | null; firstNodeCompletion: boolean; lessonCompleted: boolean; at: number } | null>(null)
 
+  // Phần đang xem — null = tự theo phần chứa bài hiện tại (Duolingo style:
+  // mỗi lần vào chỉ thấy MỘT phần; đổi phần qua chips hoặc thẻ cuối phần).
+  const [viewSectionOrder, setViewSectionOrder] = useState<number | null>(null)
+  useEffect(() => {
+    // Đổi khoá → về phần hiện tại (deferred cho hợp rule set-state-in-effect)
+    queueMicrotask(() => setViewSectionOrder(null))
+  }, [courseSlug])
+
   // Đọc cờ "vừa hoàn thành" từ player → chúc mừng ải vừa vượt/thành thạo.
-  // Lưu ý race: lần đầu effect chạy, data có thể là cache cũ (node.state chưa kịp cập nhật
-  // thành MASTERED) → giữ cờ và đợi data tươi (effect chạy lại khi [data] đổi) rồi mới chúc mừng.
   useEffect(() => {
     if (!data) return
     if (!celebrateCheckedOnce.current) {
@@ -208,17 +217,6 @@ export function LearnView() {
     }
   }, [data])
 
-  const nextNode = useMemo(() => {
-    if (!data) return null
-    for (const s of data.sections) {
-      for (const l of s.lessons) {
-        const found = l.nodes.find((n) => n.state === 'AVAILABLE' || n.state === 'IN_PROGRESS')
-        if (found) return found
-      }
-    }
-    return null
-  }, [data])
-
   const openNode = (node: NodeDTO) => {
     if (node.state === 'LOCKED' || node.exerciseCount === 0) return
     navigate(`/lesson/${node.id}`)
@@ -227,115 +225,78 @@ export function LearnView() {
   if (isLoading) return <LoadingBlock label="Đang mở Learning Path…" />
   if (error || !data) return <ErrorBlock message="Không tải được hành trình học." onRetry={() => refetch()} />
 
-  const draftLessons = data.sections.flatMap((s) => s.lessons).filter((l) => l.nodes.every((n) => n.status === 'DRAFT'))
+  /* ---------- Tính phần đang xem (Duolingo: 1 phần/lần) ---------- */
+  const sections = [...data.sections].sort((a, b) => a.order - b.order)
+  const autoOrder = autoSectionOrder(data)
+  const activeOrder = viewSectionOrder ?? autoOrder
+  const activeSection = sections.find((s) => s.order === activeOrder) ?? sections[0]
+  const nextSection = sections.find((s) => s.order === activeOrder + 1) ?? null
 
   return (
     <div className="grid xl:grid-cols-[1fr_300px] gap-6 items-start">
       {/* Learning path */}
       <div className="min-w-0">
-        {/* Course switcher — hiện khi có nhiều khoá học */}
-        {courseList.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Chọn khoá học">
-            {courseList.map((c) => {
-              const active = data?.course.slug === c.slug
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => {
-                    setCourseSlug(c.slug)
-                    try {
-                      sessionStorage.setItem(COURSE_STORAGE_KEY, c.slug)
-                      localStorage.setItem(COURSE_STORAGE_KEY, c.slug)
-                    } catch {
-                      /* bỏ qua */
-                    }
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                  }}
-                  className={cn(
-                    'h-11 rounded-full border px-4 text-sm font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                    active
-                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
-                      : 'bg-card hover:border-primary/40 hover:bg-primary/5',
-                  )}
-                >
-                  {c.titleJa && <span className="jp mr-1.5">{c.titleJa}</span>}
-                  <span>{c.title}</span>
-                  <span className={cn('ml-2 text-xs font-semibold tabular-nums', active ? 'opacity-80' : 'text-muted-foreground')}>
-                    {c.lessonCount} bài
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="rounded-3xl border bg-gradient-to-br from-primary/10 via-card to-sakura/10 p-5 sm:p-6 mb-8 relative overflow-hidden">
-          <div className="absolute -right-6 -top-8 text-[120px] leading-none jp font-black text-primary/5 select-none" aria-hidden>
-            頑
-          </div>
-          <div className="relative">
-            <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider mb-1.5">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              Khóa học · {data.course.title}
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-              Hành trình của bạn · {data.stats.lessonsCompleted}/{data.stats.totalLessons} bài
-            </h1>
-            <div className="mt-3 max-w-md">
-              <Progress value={(data.stats.lessonsCompleted / Math.max(1, data.stats.totalLessons)) * 100} className="h-2.5" />
-            </div>
-            {nextNode && (
-              <Button
-                onClick={() => openNode(nextNode)}
-                className="mt-4 rounded-2xl h-12 px-6 font-bold shadow-lg shadow-primary/25 max-w-full"
-              >
-                <span className="line-clamp-2 text-left break-words leading-tight">Tiếp tục: {nextNode.title}</span>
-                <ArrowRight className="h-4.5 w-4.5 shrink-0" aria-hidden />
-              </Button>
-            )}
-          </div>
-        </div>
+        {/* Course selector — kiểu "MY COURSES" của Duolingo */}
+        <CourseSelector
+          current={data.course}
+          courses={courseList}
+          onSelect={(slug) => {
+            setCourseSlug(slug)
+            try {
+              sessionStorage.setItem(COURSE_STORAGE_KEY, slug)
+              localStorage.setItem(COURSE_STORAGE_KEY, slug)
+            } catch {
+              /* bỏ qua */
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+        />
 
         {/* Từ của ngày — bản di động (desktop hiển thị ở sidebar phải) */}
         <div className="xl:hidden mb-6">
           <WordOfDayCard onNavigateVocab={() => navigate('/vocabulary')} />
         </div>
 
-        {/* Sections */}
-        {data.sections.map((section) => (
-          <section key={section.id} className="mb-4" aria-label={section.title}>
-            {/* Section banner */}
-            <div className="relative rounded-2xl bg-primary text-primary-foreground p-4 sm:p-5 shadow-lg shadow-primary/20 mb-6 overflow-hidden">
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-5xl jp font-black opacity-15 select-none" aria-hidden>
-                {section.titleJa}
-              </div>
-              <p className="text-[11px] font-bold uppercase tracking-widest opacity-80">Phần {section.order + 1}</p>
-              <h2 className="text-lg sm:text-xl font-extrabold">{section.title}</h2>
-              <p className="text-xs sm:text-sm opacity-85 mt-0.5 max-w-lg">{section.description}</p>
-            </div>
+        {/* Section chips — trung tâm quản lý các phần */}
+        <SectionChips
+          sections={sections}
+          activeOrder={activeOrder}
+          autoOrder={autoOrder}
+          onSelect={(order) => {
+            setViewSectionOrder(order)
+            document.getElementById('section-banner')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+        />
 
-            {/* Lessons */}
-            {section.lessons.map((lesson) => (
-              <LessonBlock
-                key={lesson.id}
-                lesson={lesson}
-                celebrateNodeId={celebrateNodeId}
-                onOpenNode={openNode}
-                onNodeInfo={() => navigate(`/lessons/${lesson.id}`)}
-                onJump={setJumpTarget}
-              />
-            ))}
-          </section>
-        ))}
+        {/* Phần đang xem — MỘT phần duy nhất */}
+        <section aria-label={activeSection.title}>
+          <SectionBanner section={activeSection} totalStats={data.stats} />
 
-        {draftLessons.length > 0 && (
-          <p className="text-center text-xs text-muted-foreground py-4">
-            {draftLessons.length} bài cuối đang được biên soạn — sẽ mở dần trong các bản cập nhật tiếp theo.
-          </p>
+          {/* Các bài trong phần — lộ trình mở dần theo tiến độ */}
+          <SectionLessons
+            section={activeSection}
+            celebrateNodeId={celebrateNodeId}
+            onOpenNode={openNode}
+            onNodeInfo={(id) => navigate(`/lessons/${id}`)}
+            onJump={setJumpTarget}
+          />
+        </section>
+
+        {/* Cuối phần: thẻ "PHẦN TIẾP THEO" kiểu UP NEXT của Duolingo */}
+        {nextSection ? (
+          <NextSectionCard
+            section={nextSection}
+            onGoto={() => {
+              setViewSectionOrder(nextSection.order)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            onJumpFirst={(lesson) => setJumpTarget(lesson)}
+          />
+        ) : (
+          <CourseEndCard
+            stats={data.stats}
+            onRestart={() => setViewSectionOrder(null)}
+          />
         )}
       </div>
 
@@ -459,67 +420,448 @@ export function LearnView() {
   )
 }
 
+/* ------------------------------ Helpers: section ---------------------------- */
+
+/** Phần chứa bài hiện tại (currentLessonId) — fallback: phần cuối cùng. Không dùng hook. */
+function autoSectionOrder(data: LearnDTO): number {
+  const sections = [...data.sections].sort((a, b) => a.order - b.order)
+  for (const s of sections) {
+    if (s.lessons.some((l) => l.id === data.stats.currentLessonId)) return s.order
+  }
+  return sections[sections.length - 1]?.order ?? 0
+}
+
+/** Bài đang "mở" trong một phần: bài đầu tiên chưa COMPLETED. */
+function firstIncompleteIdx(lessons: LessonDTO[]): number {
+  return lessons.findIndex((l) => l.state !== 'COMPLETED')
+}
+
+/* ------------------------------ Course selector ----------------------------- */
+
+function CourseSelector({
+  current,
+  courses,
+  onSelect,
+}: {
+  current: LearnDTO['course']
+  courses: CourseListItemDTO[]
+  onSelect: (slug: string) => void
+}) {
+  const badge = (c: { titleJa: string | null }) => (c.titleJa ? Array.from(c.titleJa).slice(0, 2).join('') : '日')
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="group inline-flex items-center gap-3 h-14 rounded-2xl border-2 border-border bg-card pr-4 pl-2.5 text-left transition-all hover:border-primary/40 hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Chọn khóa học"
+          >
+            <span className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-primary/20 to-sakura/20 border border-primary/20 flex items-center justify-center jp text-lg font-black text-primary" aria-hidden>
+              {badge(current)}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-extrabold leading-tight truncate">{current.title}</span>
+              <span className="block text-[11px] text-muted-foreground truncate">
+                {current.titleJa ? `${current.titleJa} · ` : ''}
+                {courses.find((c) => c.slug === current.slug)?.lessonCount ?? '—'} bài học
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" aria-hidden />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-72">
+          <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Khóa học của tôi
+          </DropdownMenuLabel>
+          {courses.map((c) => {
+            const active = c.slug === current.slug
+            return (
+              <DropdownMenuItem
+                key={c.id}
+                onSelect={() => {
+                  if (!active) onSelect(c.slug)
+                }}
+                className={cn('gap-3 py-2.5', active && 'bg-primary/5')}
+                aria-current={active ? 'true' : undefined}
+              >
+                <span
+                  className={cn(
+                    'h-9 w-9 shrink-0 rounded-xl border flex items-center justify-center jp text-base font-black',
+                    active ? 'bg-primary/15 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground'
+                  )}
+                  aria-hidden
+                >
+                  {badge(c)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold truncate">{c.title}</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {c.titleJa ? `${c.titleJa} · ` : ''}
+                    {c.lessonCount} bài
+                  </span>
+                </span>
+                {active && <Check className="h-4 w-4 text-primary shrink-0" aria-hidden />}
+              </DropdownMenuItem>
+            )
+          })}
+          <DropdownMenuSeparator />
+          <p className="px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+            Tiến độ được lưu riêng cho từng khóa học.
+          </p>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider ml-auto">
+        <MapIcon className="h-3.5 w-3.5" aria-hidden />
+        Lộ trình
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------ Section chips ------------------------------- */
+
+function SectionChips({
+  sections,
+  activeOrder,
+  autoOrder,
+  onSelect,
+}: {
+  sections: SectionDTO[]
+  activeOrder: number
+  autoOrder: number
+  onSelect: (order: number) => void
+}) {
+  return (
+    <div
+      className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1 [scrollbar-width:thin] lg:flex-wrap lg:overflow-visible"
+      role="tablist"
+      aria-label="Chọn phần học"
+    >
+      {sections.map((s) => {
+        const done = s.lessons.length > 0 && s.lessons.every((l) => l.state === 'COMPLETED')
+        const isAuto = s.order === autoOrder
+        const active = s.order === activeOrder
+        return (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onSelect(s.order)}
+            title={s.description}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 h-9 rounded-full border px-3.5 text-xs font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              active
+                ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25'
+                : done
+                  ? 'bg-success/10 text-success border-success/40 hover:bg-success/20'
+                  : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground',
+            )}
+          >
+            {done ? (
+              <Check className="h-3.5 w-3.5" aria-hidden />
+            ) : isAuto ? (
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-warning" />
+              </span>
+            ) : (
+              <Lock className="h-3 w-3 opacity-60" aria-hidden />
+            )}
+            Phần {s.order + 1}
+            <span className={cn('truncate max-w-[110px] hidden sm:inline', active ? 'opacity-90' : 'opacity-70')}>
+              · {s.title}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ------------------------------ Section banner ------------------------------ */
+
+function SectionBanner({ section, totalStats }: { section: SectionDTO; totalStats: LearnDTO['stats'] }) {
+  const totalLessons = section.lessons.length
+  const doneLessons = section.lessons.filter((l) => l.state === 'COMPLETED').length
+  const pct = totalLessons === 0 ? 0 : Math.round((doneLessons / totalLessons) * 100)
+  return (
+    <div
+      id="section-banner"
+      className="relative rounded-3xl bg-primary text-primary-foreground p-5 sm:p-6 mb-6 shadow-lg shadow-primary/25 overflow-hidden scroll-mt-24"
+    >
+      <div className="absolute -right-4 -top-10 text-[130px] leading-none jp font-black opacity-[0.12] select-none" aria-hidden>
+        {section.titleJa}
+      </div>
+      <div className="relative">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-widest opacity-85">
+          <span>Phần {section.order + 1}</span>
+          <span aria-hidden>·</span>
+          <span>{doneLessons}/{totalLessons} bài</span>
+          {pct === 100 && (
+            <span className="rounded-full bg-white/20 px-2 py-0.5">Hoàn thành!</span>
+          )}
+        </div>
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight mt-1">{section.title}</h1>
+        <p className="text-xs sm:text-sm opacity-85 mt-0.5 max-w-lg">{section.description}</p>
+        <div className="mt-3 max-w-md">
+          <Progress value={pct} className="h-2.5 bg-white/25" />
+          <p className="text-[10px] font-semibold opacity-75 mt-1.5">
+            {pct}% phần này · toàn khóa: {totalStats.lessonsCompleted}/{totalStats.totalLessons} bài
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------ Section lessons ------------------------------ */
+
+function SectionLessons({
+  section,
+  celebrateNodeId,
+  onOpenNode,
+  onNodeInfo,
+  onJump,
+}: {
+  section: SectionDTO
+  celebrateNodeId: string | null
+  onOpenNode: (n: NodeDTO) => void
+  onNodeInfo: (lessonId: string) => void
+  onJump: (lesson: LessonDTO) => void
+}) {
+  const lessons = section.lessons
+  const activeIdx = firstIncompleteIdx(lessons)
+
+  return (
+    <div>
+      {lessons.map((lesson, i) => {
+        if (lesson.state === 'COMPLETED') {
+          // Bài đã xong — dải chip thu gọn (bấm để mở rộng ôn lại)
+          return (
+            <LessonBlock
+              key={lesson.id}
+              lesson={lesson}
+              variant="collapsed"
+              celebrateNodeId={celebrateNodeId}
+              onOpenNode={onOpenNode}
+              onNodeInfo={() => onNodeInfo(lesson.id)}
+              onJump={onJump}
+            />
+          )
+        }
+        if (i === activeIdx) {
+          // Bài đang học — banner + đường zigzag đầy đủ
+          return (
+            <LessonBlock
+              key={lesson.id}
+              lesson={lesson}
+              variant="active"
+              celebrateNodeId={celebrateNodeId}
+              onOpenNode={onOpenNode}
+              onNodeInfo={() => onNodeInfo(lesson.id)}
+              onJump={onJump}
+            />
+          )
+        }
+        if (i === activeIdx + 1) {
+          // Bài kế tiếp — thẻ teaser + "Nhảy tới đây?" (Duolingo jump here)
+          return (
+            <LessonBlock
+              key={lesson.id}
+              lesson={lesson}
+              variant="teaser"
+              celebrateNodeId={celebrateNodeId}
+              onOpenNode={onOpenNode}
+              onNodeInfo={() => onNodeInfo(lesson.id)}
+              onJump={onJump}
+            />
+          )
+        }
+        return null // ẩn hoàn toàn — lộ trình mở dần theo tiến độ
+      })}
+
+      {/* Đuôi phần: các bài chưa mở */}
+      <UpcomingTail count={Math.max(0, lessons.length - activeIdx - 2)} />
+    </div>
+  )
+}
+
+/* ------------------------------ Upcoming tail ------------------------------- */
+
+function UpcomingTail({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <div className="mt-4 mb-2 flex flex-col items-center gap-1.5 py-4 px-4 rounded-2xl border-2 border-dashed border-border/80 bg-muted/20 text-center">
+      <Lock className="h-4 w-4 text-muted-foreground" aria-hidden />
+      <p className="text-xs font-bold text-muted-foreground">
+        {count} bài phía sau chưa mở
+      </p>
+      <p className="text-[11px] text-muted-foreground/80">
+        Hoàn thành bài hiện tại để dần dần mở lộ trình — kiểu leo núi, từng bước một!
+      </p>
+    </div>
+  )
+}
+
+/* ------------------------------ Next section card --------------------------- */
+
+function NextSectionCard({
+  section,
+  onGoto,
+  onJumpFirst,
+}: {
+  section: SectionDTO
+  onGoto: () => void
+  onJumpFirst: (lesson: LessonDTO) => void
+}) {
+  const firstLesson = section.lessons[0]
+  const canJump =
+    !!firstLesson &&
+    firstLesson.state === 'LOCKED' &&
+    firstLesson.nodes.some((n) => n.status === 'PUBLISHED' && n.exerciseCount > 0)
+  return (
+    <div className="mt-6 rounded-3xl border-2 border-dashed border-primary/30 bg-gradient-to-b from-primary/[0.07] to-transparent p-5 sm:p-6 text-center relative overflow-hidden">
+      <div className="absolute -left-3 -bottom-8 text-[100px] leading-none jp font-black text-primary/5 select-none" aria-hidden>
+        {section.titleJa}
+      </div>
+      <div className="relative">
+        <p className="text-[11px] font-extrabold uppercase tracking-widest text-primary">Phần tiếp theo</p>
+        <h2 className="text-lg sm:text-xl font-extrabold mt-1">
+          Phần {section.order + 1} · {section.title}
+        </h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-md mx-auto">{section.description}</p>
+        <div className="flex flex-wrap justify-center gap-2.5 mt-4">
+          <Button onClick={onGoto} className="rounded-2xl h-11 px-5 font-bold">
+            Xem lộ trình phần này
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </Button>
+          {canJump && (
+            <Button
+              variant="outline"
+              onClick={() => onJumpFirst(firstLesson)}
+              className="rounded-2xl h-11 px-5 font-bold border-sakura/50 text-sakura hover:bg-sakura hover:text-sakura-foreground"
+            >
+              <Rocket className="h-4 w-4" aria-hidden />
+              Nhảy tới phần này?
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------ Course end card ----------------------------- */
+
+function CourseEndCard({ stats, onRestart }: { stats: LearnDTO['stats']; onRestart: () => void }) {
+  const allDone = stats.lessonsCompleted >= stats.totalLessons
+  return (
+    <div className="mt-6 rounded-3xl border bg-gradient-to-br from-warning/10 via-card to-sakura/10 p-6 text-center relative overflow-hidden">
+      <div className="absolute -right-4 -top-8 text-[110px] leading-none jp font-black text-warning/10 select-none" aria-hidden>
+        終
+      </div>
+      <div className="relative">
+        <Trophy className="h-10 w-10 mx-auto text-warning" aria-hidden />
+        <h2 className="text-lg sm:text-xl font-extrabold mt-2">
+          {allDone ? 'Bạn đã hoàn thành toàn bộ khóa học!' : 'Bạn đã đến phần cuối của khóa học'}
+        </h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          {allDone
+            ? 'すごい! Hãy ôn tập để giữ kiến thức luôn sắc bén — hoặc chuyển sang khóa học khác.'
+            : `Đã hoàn thành ${stats.lessonsCompleted}/${stats.totalLessons} bài. Hoàn thành nốt phần này để chinh phục cả khóa!`}
+        </p>
+        <div className="flex flex-wrap justify-center gap-2.5 mt-4">
+          <Button onClick={onRestart} variant="outline" className="rounded-2xl h-11 px-5 font-bold">
+            <ArrowRight className="h-4 w-4" aria-hidden />
+            Xem lại lộ trình từ đầu
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ------------------------------- Lesson block ------------------------------- */
 
 function LessonBlock({
   lesson,
+  variant,
   celebrateNodeId,
   onOpenNode,
   onNodeInfo,
   onJump,
 }: {
   lesson: LessonDTO
+  variant: 'collapsed' | 'active' | 'teaser'
   celebrateNodeId: string | null
-  onOpenNode: (node: NodeDTO) => void
+  onOpenNode: (n: NodeDTO) => void
   onNodeInfo: () => void
   onJump: (lesson: LessonDTO) => void
 }) {
   const isDraft = lesson.nodes.length > 0 && lesson.nodes.every((n) => n.status === 'DRAFT')
-  const firstNode = lesson.nodes.find((n) => n.state === 'AVAILABLE' || n.state === 'IN_PROGRESS')
-  const lessonCompleted = lesson.state === 'COMPLETED'
   // Bài đang khóa nhưng đã có nội dung xuất bản → cho phép kiểm tra bỏ qua
   const canJump =
     lesson.state === 'LOCKED' && !isDraft && lesson.nodes.some((n) => n.status === 'PUBLISHED' && n.exerciseCount > 0)
 
-  // Thu gọn bài đã hoàn thành: chuỗi ải dài chiếm màn hình — gộp thành dải chip
-  // nhỏ để lộ các bài mới phía dưới. Tự MỞ RỘNG khi có ăn mừng (vừa xong ải).
-  const hasCelebrate = lesson.nodes.some((n) => n.id === celebrateNodeId)
-  const [expanded, setExpanded] = useState(!lessonCompleted)
-  const showNodes = expanded || hasCelebrate
-
-  return (
-    <div className="mb-2">
-      {/* Lesson header card */}
-      <button
-        onClick={onNodeInfo}
-        className={cn(
-          'w-full rounded-2xl border-2 p-4 mb-5 text-left transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring hover:shadow-md',
-          lessonCompleted
-            ? 'border-success/50 bg-success/5'
-            : firstNode
-              ? 'border-primary/40 bg-card shadow-sm'
-              : 'border-border bg-card/60'
-        )}
-      >
-        <div className="flex items-center gap-3.5">
-          <div
-            className={cn(
-              'h-12 w-12 shrink-0 rounded-2xl flex items-center justify-center font-extrabold text-lg',
-              lessonCompleted ? 'bg-success text-white' : firstNode ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-            )}
-            aria-hidden
-          >
-            {lessonCompleted ? <Check className="h-6 w-6" /> : lesson.order}
+  if (variant === 'teaser') {
+    return (
+      <div className="mt-5 mb-2">
+        <div className="rounded-2xl border-2 bg-card/70 p-4 flex items-center gap-4">
+          <div className="h-12 w-12 shrink-0 rounded-2xl bg-muted border border-border flex items-center justify-center text-muted-foreground" aria-hidden>
+            <Lock className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-extrabold tracking-tight">Bài {lesson.order}</h3>
-              <span className="jp text-sm text-muted-foreground truncate">{lesson.titleJa}</span>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Bài kế tiếp</p>
               {isDraft && (
                 <span className="text-[10px] font-bold rounded-full bg-muted px-2 py-0.5 text-muted-foreground inline-flex items-center gap-1">
                   <Sparkles className="h-3 w-3" /> Đang biên soạn
                 </span>
               )}
+            </div>
+            <h3 className="font-extrabold tracking-tight truncate">
+              Bài {lesson.order} · <span className="jp text-muted-foreground font-bold">{lesson.titleJa}</span>
+            </h3>
+            <p className="text-xs text-muted-foreground truncate">{lesson.title} · {lesson.totalNodes} ải</p>
+          </div>
+          {canJump && (
+            <button
+              onClick={() => onJump(lesson)}
+              className="group shrink-0 inline-flex items-center gap-1.5 rounded-full border-2 border-sakura/50 bg-sakura/10 px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wider text-sakura transition-all hover:bg-sakura hover:text-sakura-foreground hover:shadow-lg hover:shadow-sakura/30 hover:-translate-y-0.5 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Bỏ qua tới bài ${lesson.order}: ${lesson.title} — làm bài kiểm tra để mở khóa`}
+            >
+              <Rocket className="h-3.5 w-3.5 transition-transform group-hover:rotate-12" aria-hidden />
+              Nhảy tới đây?
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (variant === 'collapsed') {
+    return <CollapsedLesson lesson={lesson} celebrateNodeId={celebrateNodeId} onOpenNode={onOpenNode} onNodeInfo={onNodeInfo} />
+  }
+
+  /* variant === 'active' */
+  return (
+    <div className="mb-6">
+      {/* Lesson banner — header của bài đang học */}
+      <button
+        onClick={onNodeInfo}
+        className="w-full rounded-2xl border-2 border-primary/40 bg-card p-4 mb-2 text-left transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring hover:shadow-md shadow-sm"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className="h-12 w-12 shrink-0 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-extrabold text-lg" aria-hidden>
+            {lesson.order}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-extrabold tracking-tight">Bài {lesson.order}</h3>
+              <span className="jp text-sm text-muted-foreground truncate">{lesson.titleJa}</span>
             </div>
             <p className="text-xs text-muted-foreground truncate mt-0.5">{lesson.title}</p>
           </div>
@@ -535,77 +877,192 @@ function LessonBlock({
         )}
       </button>
 
-      {/* Nút “Nhảy tới đây?” kiểu Duolingo cho bài đang khóa */}
-      {canJump && (
-        <div className="flex justify-center -mt-1 mb-5 relative z-10">
+      {/* Đường zigzag các ải — kiểu Duolingo */}
+      <ZigzagLessonPath nodes={lesson.nodes} celebrateNodeId={celebrateNodeId} onOpenNode={onOpenNode} />
+    </div>
+  )
+}
+
+/* ------------------------------ Collapsed lesson ---------------------------- */
+
+function CollapsedLesson({
+  lesson,
+  celebrateNodeId,
+  onOpenNode,
+  onNodeInfo,
+}: {
+  lesson: LessonDTO
+  celebrateNodeId: string | null
+  onOpenNode: (n: NodeDTO) => void
+  onNodeInfo: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const hasCelebrate = lesson.nodes.some((n) => n.id === celebrateNodeId)
+  const showNodes = expanded || hasCelebrate
+
+  if (showNodes) {
+    return (
+      <div className="mb-2">
+        <button
+          onClick={onNodeInfo}
+          className="w-full rounded-2xl border-2 border-success/50 bg-success/5 p-3.5 mb-2 text-left transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-success text-white flex items-center justify-center" aria-hidden>
+              <Check className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-extrabold text-sm tracking-tight">
+                Bài {lesson.order} <span className="jp text-muted-foreground font-bold">{lesson.titleJa}</span>
+              </h3>
+              <p className="text-[11px] text-muted-foreground truncate">{lesson.title}</p>
+            </div>
+            <span className="text-[10px] font-bold rounded-full bg-success/15 text-success px-2 py-0.5 shrink-0">
+              Hoàn thành
+            </span>
+          </div>
+        </button>
+        <ZigzagLessonPath nodes={lesson.nodes} celebrateNodeId={celebrateNodeId} onOpenNode={onOpenNode} />
+        <div className="flex justify-center mt-1">
           <button
-            onClick={() => onJump(lesson)}
-            className="group inline-flex items-center gap-2 rounded-full border-2 border-sakura/50 bg-sakura/10 px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-sakura transition-all hover:bg-sakura hover:text-sakura-foreground hover:shadow-lg hover:shadow-sakura/30 hover:-translate-y-0.5 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`Bỏ qua tới bài ${lesson.order}: ${lesson.title} — làm bài kiểm tra để mở khóa`}
+            onClick={() => setExpanded(false)}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded="true"
           >
-            <Rocket className="h-4 w-4 transition-transform group-hover:rotate-12" aria-hidden />
-            Nhảy tới đây?
+            <ChevronUp className="h-3.5 w-3.5" aria-hidden /> Thu gọn
           </button>
         </div>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setExpanded(true)}
+      className="group w-full mb-2 rounded-2xl border-2 border-dashed border-success/40 bg-success/[0.04] px-4 py-3 transition-all hover:border-success/60 hover:bg-success/10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-expanded="false"
+      aria-label={`Mở rộng ${lesson.totalNodes} ải của bài ${lesson.order}: ${lesson.title}`}
+    >
+      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+        {lesson.nodes.map((n) => {
+          const mastered = n.state === 'MASTERED'
+          return (
+            <span
+              key={n.id}
+              title={n.title + (mastered ? ' (Thành thạo)' : ' (Hoàn thành)')}
+              className={cn(
+                'h-6 w-6 rounded-full flex items-center justify-center border transition-transform group-hover:scale-110',
+                mastered
+                  ? 'bg-warning/15 border-warning/50 text-warning'
+                  : 'bg-success/15 border-success/50 text-success'
+              )}
+            >
+              {mastered ? <Star className="h-3 w-3" aria-hidden /> : <Check className="h-3 w-3" aria-hidden />}
+            </span>
+          )
+        })}
+      </div>
+      <p className="text-center text-[11px] font-semibold text-muted-foreground mt-2 group-hover:text-foreground transition-colors">
+        Bài {lesson.order} hoàn thành · bấm để mở rộng {lesson.totalNodes} ải ôn lại
+      </p>
+    </button>
+  )
+}
+
+/* ---------------------------- Zigzag lesson path ---------------------------- */
+
+/** Nhịp so le (Duolingo): giữa → trái → giữa → phải → lặp lại. */
+const ZIGZAG_PATTERN = [0, -1, 0, 1] as const
+/** Chiều cao mỗi hàng node (px) — nhịp dọc của con đường. */
+const ROW_H = 118
+
+function zigzagOffset(i: number, width: number): number {
+  const dir = ZIGZAG_PATTERN[i % ZIGZAG_PATTERN.length]!
+  if (dir === 0) return 0
+  const amp = Math.min(0.22 * width, 150) // không vượt ra mép trên màn hẹp
+  return dir * amp
+}
+
+function ZigzagLessonPath({
+  nodes,
+  celebrateNodeId,
+  onOpenNode,
+}: {
+  nodes: NodeDTO[]
+  celebrateNodeId: string | null
+  onOpenNode: (n: NodeDTO) => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(0)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setWidth(e.contentRect.width)
+    })
+    ro.observe(el)
+    setWidth(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
+
+  const height = nodes.length * ROW_H
+
+  // Đường cong nối tâm các node liên tiếp (bezier mượt như Duolingo)
+  const pathD = useMemo(() => {
+    if (width <= 0 || nodes.length < 2) return null
+    const cx = (i: number) => width / 2 + zigzagOffset(i, width)
+    const cy = (i: number) => i * ROW_H + ROW_H / 2
+    let d = `M ${cx(0)} ${cy(0)}`
+    for (let i = 1; i < nodes.length; i++) {
+      const x0 = cx(i - 1), y0 = cy(i - 1)
+      const x1 = cx(i), y1 = cy(i)
+      const my = (y0 + y1) / 2
+      d += ` C ${x0} ${my}, ${x1} ${my}, ${x1} ${y1}`
+    }
+    return d
+  }, [width, nodes.length])
+
+  if (nodes.length === 0) {
+    return <p className="text-xs text-muted-foreground py-3 text-center">Nội dung sắp ra mắt</p>
+  }
+
+  return (
+    <div ref={containerRef} className="relative" style={{ height }}>
+      {/* Đường đi mờ phía sau các node */}
+      {pathD && (
+        <svg
+          className="absolute inset-0 pointer-events-none"
+          width={width || undefined}
+          height={height}
+          viewBox={`0 0 ${Math.max(width, 1)} ${height}`}
+          fill="none"
+          aria-hidden
+        >
+          <path
+            d={pathD}
+            stroke="var(--muted-foreground)"
+            strokeOpacity={0.35}
+            strokeWidth={7}
+            strokeLinecap="round"
+            strokeDasharray="1 14"
+          />
+        </svg>
       )}
 
-      {/* Node chain — hoặc dạng thu gọn nếu bài đã hoàn thành */}
-      {showNodes ? (
-        <>
-          <div className="relative flex flex-col items-center">
-            {lesson.nodes.map((node, i) => (
-              <div key={node.id} className="flex flex-col items-center w-full">
-                {i > 0 && <div className="path-line w-0.5 h-8" aria-hidden />}
-                <PathNode node={node} celebrate={celebrateNodeId === node.id} onOpen={onOpenNode} />
-              </div>
-            ))}
-            {lesson.nodes.length === 0 && (
-              <p className="text-xs text-muted-foreground py-3">Nội dung sắp ra mắt</p>
-            )}
-          </div>
-          {lessonCompleted && (
-            <div className="flex justify-center mt-1">
-              <button
-                onClick={() => setExpanded(false)}
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-expanded="true"
-              >
-                <ChevronUp className="h-3.5 w-3.5" aria-hidden /> Thu gọn
-              </button>
+      {/* Các node so le */}
+      <div className="absolute inset-0">
+        {nodes.map((node, i) => (
+          <div key={node.id} className="absolute left-0 right-0 flex justify-center" style={{ top: i * ROW_H, height: ROW_H }}>
+            <div
+              className="flex flex-col items-center"
+              style={{ transform: `translateX(${width > 0 ? zigzagOffset(i, width) : 0}px)` }}
+            >
+              <PathNode node={node} celebrate={celebrateNodeId === node.id} onOpen={onOpenNode} />
             </div>
-          )}
-        </>
-      ) : (
-        <button
-          onClick={() => setExpanded(true)}
-          className="group w-full mb-2 rounded-2xl border-2 border-dashed border-success/40 bg-success/[0.04] px-4 py-3 transition-all hover:border-success/60 hover:bg-success/10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-expanded="false"
-          aria-label={`Mở rộng ${lesson.totalNodes} ải của bài ${lesson.order}: ${lesson.title}`}
-        >
-          <div className="flex items-center justify-center gap-1.5 flex-wrap">
-            {lesson.nodes.map((n) => {
-              const mastered = n.state === 'MASTERED'
-              return (
-                <span
-                  key={n.id}
-                  title={n.title + (mastered ? ' (Thành thạo)' : ' (Hoàn thành)')}
-                  className={cn(
-                    'h-6 w-6 rounded-full flex items-center justify-center border transition-transform group-hover:scale-110',
-                    mastered
-                      ? 'bg-warning/15 border-warning/50 text-warning'
-                      : 'bg-success/15 border-success/50 text-success'
-                  )}
-                >
-                  {mastered ? <Star className="h-3 w-3" aria-hidden /> : <Check className="h-3 w-3" aria-hidden />}
-                </span>
-              )
-            })}
           </div>
-          <p className="text-center text-[11px] font-semibold text-muted-foreground mt-2 group-hover:text-foreground transition-colors">
-            Bài {lesson.order} hoàn thành · bấm để mở rộng {lesson.totalNodes} ải ôn lại
-          </p>
-        </button>
-      )}
+        ))}
+      </div>
     </div>
   )
 }
@@ -633,7 +1090,7 @@ function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boole
       {celebrate && <NodeConfetti />}
       {/* Bong bóng BẮT ĐẦU kiểu Duolingo */}
       {isCurrent && (
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10 animate-bubble-bounce" aria-hidden>
+        <div className="absolute -top-11 left-1/2 -translate-x-1/2 z-10 animate-bubble-bounce" aria-hidden>
           <span className="relative block rounded-xl bg-primary text-primary-foreground text-[11px] font-extrabold uppercase tracking-wider px-3 py-1.5 whitespace-nowrap shadow-md">
             Bắt đầu
             <span className="absolute left-1/2 -bottom-[5px] -translate-x-1/2 h-2.5 w-2.5 bg-primary rotate-45 rounded-[3px]" />
@@ -672,17 +1129,16 @@ function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boole
         )}
       </button>
 
-      {/* Label — max-w + truncate để tiêu đề dài không tràn ngang viewport */}
-      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:block pointer-events-none max-w-[200px]">
-        <p className={cn('text-sm font-bold truncate', isLocked && 'text-muted-foreground')}>{node.title}</p>
-        <p className="text-[11px] text-muted-foreground truncate">
-          {isLocked ? (node.status === 'DRAFT' ? 'Sắp ra mắt' : 'Đang khóa') : `${node.exerciseCount} bài tập · ${node.xpReward} XP`}
+      {/* Nhãn dưới node — luôn hiển thị (bố cục zigzag không có chỗ ở bên cạnh) */}
+      <div className="mt-1.5 w-[120px] sm:w-[150px] text-center pointer-events-none">
+        <p className={cn('text-[10px] sm:text-[11px] font-bold leading-tight line-clamp-2', isLocked && 'text-muted-foreground')}>
+          {node.title}
         </p>
       </div>
 
       {/* Menu replay cho node hoàn thành */}
       {showMenu && isDone && (
-        <div className="absolute z-20 left-1/2 -translate-x-1/2 top-full mt-2 w-44 rounded-xl border bg-popover shadow-lg p-1.5">
+        <div className="absolute z-20 left-1/2 -translate-x-1/2 top-full mt-1 w-44 rounded-xl border bg-popover shadow-lg p-1.5">
           <button
             onClick={() => {
               setShowMenu(false)
@@ -718,7 +1174,7 @@ function NodeConfetti() {
         delay: Math.random() * 0.5,
         duration: 1.4 + Math.random() * 1.2,
         size: 4 + Math.random() * 5,
-        color: NODE_CONFETTI_COLORS[i % NODE_CONFETTI_COLORS.length],
+        color: NODE_CONFETTI_COLORS[i % NODE_CONFETTI_COLORS.length]!,
         rotate: Math.floor(Math.random() * 360),
         round: Math.random() > 0.6,
       })),

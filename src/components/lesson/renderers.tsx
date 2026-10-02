@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Loader2, Mic, Square, Volume2, X } from 'lucide-react'
+import { Check, Loader2, Mic, PenLine, Square, Volume2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AudioButton, useTtsPlayer } from '@/components/shared/audio-button'
+import { StrokeOrderPlayer } from '@/components/kana/stroke-order-player'
 import { WritingCanvas, computeShapeSimilarity, type Strokes } from './canvas-write'
 
 /* ----------------------------- Shared contracts ---------------------------- */
@@ -417,7 +418,6 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
   const d = question.data
   const pairs = d.pairs ?? []
   const [activeLeft, setActiveLeft] = useState<string | null>(null)
-  const [wrongPair, setWrongPair] = useState<string | null>(null)
   const done = draft.pairs ?? {}
   const matchedRights = new Set(Object.values(done))
   // Xáo trộn CỘT PHẢI mỗi lần vào câu — nếu giữ nguyên thứ tự của cột trái,
@@ -431,6 +431,47 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
     }
     return idx
   })
+
+  /* --- Đường nối SVG giữa các cặp đã ghép (giữ khối cố định, không trôi) --- */
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const leftRefs = useRef(new Map<string, HTMLElement>())
+  const rightRefs = useRef(new Map<string, HTMLElement>())
+  const [links, setLinks] = useState<{ id: string; d: string }[]>([])
+
+  // Vẽ lại đường nối mỗi khi: ghép cặp mới / xáo cột phải / resize / paginate.
+  // Deferred qua queueMicrotask cho hợp rule react-hooks/set-state-in-effect.
+  const recompute = () => {
+    const wrap = wrapRef.current
+    if (!wrap) return
+    const wr = wrap.getBoundingClientRect()
+    const at = (el: HTMLElement | undefined, side: 'r' | 'l') => {
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return {
+        x: (side === 'r' ? r.right : r.left) - wr.left,
+        y: r.top + r.height / 2 - wr.top,
+      }
+    }
+    const out: { id: string; d: string }[] = []
+    for (const [leftId, rightText] of Object.entries(done)) {
+      const from = at(leftRefs.current.get(leftId), 'r')
+      const to = at(rightRefs.current.get(rightText), 'l')
+      if (!from || !to) continue
+      const mx = (from.x + to.x) / 2
+      out.push({
+        id: leftId,
+        d: `M ${from.x} ${from.y} C ${mx} ${from.y}, ${mx} ${to.y}, ${to.x} ${to.y}`,
+      })
+    }
+    setLinks(out)
+  }
+  useEffect(() => {
+    queueMicrotask(recompute)
+    const ro = new ResizeObserver(() => queueMicrotask(recompute))
+    if (wrapRef.current) ro.observe(wrapRef.current)
+    return () => ro.disconnect()
+     
+  }, [done, rightOrder, question.id])
 
   const pickLeft = (id: string) => {
     if (disabled || feedback || done[id]) return
@@ -446,57 +487,83 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
   return (
     <div className="space-y-4">
       <p className="text-center text-sm text-muted-foreground">Bấm một ô bên trái, sau đó chọn nghĩa tương ứng bên phải</p>
-      <div className="grid grid-cols-2 gap-3 max-w-2xl mx-auto">
-        <div className="space-y-2.5" role="group" aria-label="Cột ký tự">
-          {pairs.map((p) => {
-            const isDone = !!done[p.id]
-            return (
-              <button
-                key={p.id}
-                onClick={() => pickLeft(p.id)}
-                disabled={disabled || !!feedback || isDone}
-                aria-pressed={activeLeft === p.id}
-                className={cn(
-                  'w-full rounded-2xl border-2 px-3 py-3.5 text-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isDone
-                    ? 'border-success/60 bg-success/10'
-                    : activeLeft === p.id
-                      ? 'border-primary bg-primary/10 scale-[1.03] shadow-md'
-                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                )}
-              >
-                <span className="jp text-2xl font-bold block">{p.left.text}</span>
-                {p.left.reading && <span className="text-xs text-muted-foreground">{p.left.reading}</span>}
-                {isDone && <span className="text-xs font-semibold text-success block mt-1">{done[p.id]}</span>}
-              </button>
-            )
-          })}
-        </div>
-        <div className="space-y-2.5" role="group" aria-label="Cột nghĩa">
-          {rightOrder.map((i) => {
-            const p = pairs[i]
-            const isUsed = matchedRights.has(p.right.text)
-            return (
-              <button
-                key={p.id}
-                onClick={() => pickRight(p.right.text)}
-                disabled={disabled || !!feedback || isUsed}
-                className={cn(
-                  'w-full rounded-2xl border-2 px-3 py-3.5 font-semibold text-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isUsed
-                    ? 'border-border opacity-25'
-                    : activeLeft
-                      ? 'border-sakura bg-sakura/10 hover:scale-[1.02]'
-                      : 'border-border hover:border-sakura/60 hover:bg-muted/50'
-                )}
-              >
-                {p.right.text}
-              </button>
-            )
-          })}
+      <div ref={wrapRef} className="relative max-w-2xl mx-auto">
+        {/* Đường nối các cặp đã ghép — cong mượt, đè giữa hai cột */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-[1] overflow-visible" aria-hidden>
+          {links.map((l) => (
+            <path
+              key={l.id}
+              d={l.d}
+              fill="none"
+              stroke="var(--success)"
+              strokeWidth={4}
+              strokeLinecap="round"
+              opacity={feedback ? 0.9 : 0.75}
+              style={{ filter: 'drop-shadow(0 1px 1px color-mix(in srgb, var(--success) 40%, transparent))' }}
+            />
+          ))}
+        </svg>
+        <div className="grid grid-cols-2 gap-8 sm:gap-12">
+          <div className="space-y-2.5 relative z-[2]" role="group" aria-label="Cột ký tự">
+            {pairs.map((p) => {
+              const isDone = !!done[p.id]
+              return (
+                <button
+                  key={p.id}
+                  ref={(el) => {
+                    if (el) leftRefs.current.set(p.id, el)
+                    else leftRefs.current.delete(p.id)
+                  }}
+                  onClick={() => pickLeft(p.id)}
+                  disabled={disabled || !!feedback || isDone}
+                  aria-pressed={activeLeft === p.id}
+                  className={cn(
+                    'w-full min-h-[4.25rem] rounded-2xl border-2 px-3 py-3 text-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring flex flex-col items-center justify-center',
+                    isDone
+                      ? 'border-success/60 bg-success/10'
+                      : activeLeft === p.id
+                        ? 'border-primary bg-primary/10 scale-[1.03] shadow-md'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                  )}
+                >
+                  <span className="jp text-2xl font-bold leading-tight">{p.left.text}</span>
+                  {p.left.reading && <span className="text-xs text-muted-foreground leading-tight">{p.left.reading}</span>}
+                </button>
+              )
+            })}
+          </div>
+          <div className="space-y-2.5 relative z-[2]" role="group" aria-label="Cột nghĩa">
+            {rightOrder.map((i) => {
+              const p = pairs[i]!
+              const isUsed = matchedRights.has(p.right.text)
+              return (
+                <button
+                  key={p.id}
+                  ref={(el) => {
+                    if (el) rightRefs.current.set(p.right.text, el)
+                    else rightRefs.current.delete(p.right.text)
+                  }}
+                  onClick={() => pickRight(p.right.text)}
+                  disabled={disabled || !!feedback || isUsed}
+                  className={cn(
+                    'w-full min-h-[4.25rem] rounded-2xl border-2 px-3 py-3 font-semibold text-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring flex items-center justify-center',
+                    isUsed
+                      ? 'border-success/60 bg-success/10'
+                      : activeLeft
+                        ? 'border-sakura bg-sakura/10 hover:scale-[1.02]'
+                        : 'border-border hover:border-sakura/60 hover:bg-muted/50'
+                  )}
+                >
+                  {p.right.text}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
-      {wrongPair && <p className="text-center text-sm text-destructive">Chưa đúng, thử lại nhé!</p>}
+      <p className="text-center text-xs text-muted-foreground">
+        Đã ghép {Object.keys(done).length}/{pairs.length} cặp
+      </p>
     </div>
   )
 }
@@ -741,6 +808,8 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
 export function WritingRenderer({ question, draft, setDraft, disabled, feedback }: RendererProps) {
   const d = question.data
   const [strokes, setStrokes] = useState<Strokes>([])
+  // Hướng dẫn viết chữ (nét thứ tự) — mở/tắt, mặc định ẩn để tự viết trước
+  const [showGuide, setShowGuide] = useState(false)
 
   const handleStrokes = (s: Strokes) => {
     setStrokes(s)
@@ -762,6 +831,27 @@ export function WritingRenderer({ question, draft, setDraft, disabled, feedback 
           onStrokesChange={handleStrokes}
           disabled={disabled || !!feedback}
         />
+      </div>
+
+      {/* Hướng dẫn viết: xem từng nét chuẩn (KanjiVG) trước/khi tự tay viết */}
+      <div className="max-w-md mx-auto">
+        <button
+          type="button"
+          onClick={() => setShowGuide((v) => !v)}
+          aria-expanded={showGuide}
+          className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/[0.04] px-4 py-2.5 text-sm font-bold text-primary transition-all hover:border-primary/60 hover:bg-primary/10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <PenLine className="h-4 w-4" aria-hidden />
+          {showGuide ? 'Ẩn hướng dẫn viết' : `Xem hướng dẫn viết ${d.character ?? ''}`}
+          <span className="text-[10px] font-semibold text-muted-foreground" aria-hidden>
+            ({d.strokeCount ?? '?'} nét)
+          </span>
+        </button>
+        {showGuide && (
+          <div className="mt-3">
+            <StrokeOrderPlayer character={d.character ?? ''} />
+          </div>
+        )}
       </div>
 
       {feedback ? (

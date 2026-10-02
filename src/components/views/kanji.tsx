@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { PenLine } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
 import { AudioButton } from '@/components/shared/audio-button'
 import { WritingCanvas, computeShapeSimilarity } from '@/components/lesson/canvas-write'
+import { StrokeOrderPlayer } from '@/components/kana/stroke-order-player'
 import { LoadingBlock, ErrorBlock, PageHeader } from '@/components/shared/widgets'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -192,6 +194,7 @@ function KanjiWritingSection({ kanji }: { kanji: KanjiDTO }) {
   const [result, setResult] = useState<{ score: number; passed: boolean; expectedStrokes: number } | null>(null)
   const [checking, setChecking] = useState(false)
   const [resetToken, setResetToken] = useState(0)
+  const [showGuide, setShowGuide] = useState(false)
   const count = strokes.length
 
   const check = async () => {
@@ -219,6 +222,26 @@ function KanjiWritingSection({ kanji }: { kanji: KanjiDTO }) {
         </div>
         <div>
           <WritingCanvas character={kanji.character} guide disabled={!!result} resetToken={resetToken} onStrokesChange={setStrokes} />
+          {/* Hướng dẫn viết từng nét (KanjiVG) — thu gọn mặc định */}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setShowGuide((v) => !v)}
+              aria-expanded={showGuide}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/[0.04] px-4 py-2.5 text-sm font-bold text-primary transition-all hover:border-primary/60 hover:bg-primary/10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <PenLine className="h-4 w-4" aria-hidden />
+              {showGuide ? 'Ẩn hướng dẫn viết' : `Xem hướng dẫn viết ${kanji.character}`}
+              <span className="text-[10px] font-semibold text-muted-foreground" aria-hidden>
+                ({kanji.strokeCount} nét)
+              </span>
+            </button>
+            {showGuide && (
+              <div className="mt-3">
+                <StrokeOrderPlayer character={kanji.character} />
+              </div>
+            )}
+          </div>
           <div className="flex justify-center gap-2 mt-3">
             <Button disabled={count === 0 || !!result || checking} onClick={check} className="rounded-xl px-6">
               {checking ? 'Đang chấm…' : 'Chấm bài viết'}
