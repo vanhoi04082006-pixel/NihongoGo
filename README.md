@@ -92,7 +92,7 @@ bun run dev
 | Lệnh | Mô tả |
 |---|---|
 | `bun run setup` | Thiết lập 1 lệnh: .env + db + Prisma + seed (N5 + Irodori A1) |
-| `bun run dev` | Dev server (port 3000) — lần đầu tự khởi tạo database nếu thiếu |
+| `bun run dev` | Dev server (port 3000) — lần đầu tự khởi tạo database nếu thiếu; phát hiện DB seed dở/cũ và TỰ dựng lại |
 | `bun run lint` | ESLint |
 | `bun test` | Test suite (unit + integration — integration tự setup SQLite riêng trong `tests/.tmp`, không đụng DB dev) |
 | `bun run test:e2e` | E2E Playwright: đăng ký → đăng nhập → học bài → test-out → unlock (`tests/e2e/`) |
@@ -112,6 +112,14 @@ bun run dev
 - **E2E Playwright** (`tests/e2e/full-flow.e2e.ts`): luồng vàng chạy trên browser thật — đăng ký UI → đăng xuất → đăng nhập UI → học node kana đầu tiên (trả lời đúng toàn bộ 15 câu bằng đáp án đọc từ DB, đủ mọi renderer) → test-out "Nhảy tới đây?" đạt 100% → kiểm chứng toàn bộ node bài trước được đánh dấu hoàn thành + bài mới mở khóa + không có XP ảo trong ledger. Chạy: `bun run test:e2e` (tự khởi động dev server nếu chưa có).
 - **Content validator** (`scripts/content-validate.ts`): chạy trong CI — validate file curriculum + generated questions (kể cả rule exercise 0 câu hỏi = FAIL).
 - **DB audit** (`scripts/audit-content.ts`): số liệu thật từ database (lesson/node/exercise/question/vocab/grammar/kanji/kana), question quality theo type, renderer coverage, orphan — dùng `--json` cho CI.
+
+### Khắc phục sự cố thường gặp
+
+| Hiện tượng | Nguyên nhân | Cách xử lý |
+|---|---|---|
+| Khoá N5 hiện ít bài (VD 8/52) trong khi preview có 52 | Seed từng bị gián đoạn giữa chừng (Ctrl+C / lỗi) — check cũ chỉ nhìn `Course ≥ 1` nên DB dở vẫn "sẵn sàng" | Pull code mới nhất rồi `bun run dev` — predev phát hiện thiếu `seedVersion`, TỰ chạy lại setup (tài khoản giữ nguyên, tiến độ học đặt lại). Hoặc chạy tay: `bun run setup` |
+| API trả 503 `DB_NOT_INITIALIZED` (P2021/P2022) | DB chưa được tạo / schema cũ | `bun run setup` (hoặc pull code mới rồi `bun run dev` — tự khởi tạo) |
+| Seed im lặng lâu trên Windows | Đang ghi ~4.400 câu hỏi | Từ bản seed mới, mỗi bài in `[n/52]` — thấy tiến độ là bình thường, ĐỪNG Ctrl+C |
 
 ## Âm thanh & giọng nói (zero-cost)
 

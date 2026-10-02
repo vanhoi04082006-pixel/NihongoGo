@@ -16,6 +16,11 @@
  * An toàn khi chạy lại: `.env` hiện có được giữ nguyên; seed dùng upsert cho
  * users và dựng lại nội dung học (course/lessons) — tiến độ học của tài khoản
  * cũ có thể bị đặt lại do nội dung được dựng lại.
+ *
+ * Cuối seed ghi SystemConfig.seedVersion (xem prisma/seed-version.ts). Nếu
+ * seed bị gián đoạn giữa chừng (Ctrl+C, lỗi) → marker KHÔNG được ghi → lần
+ * `bun run dev` kế tiếp (predev) phát hiện DB dở và TỰ chạy lại setup. Bump
+ * SEED_VERSION khi đổi nội dung học để mọi máy dev tự nhận nội dung mới.
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'

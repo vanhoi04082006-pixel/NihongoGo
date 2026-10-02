@@ -31,6 +31,7 @@ import { lesson3 } from './seed-data/lesson3'
 import { lessonSkeletons } from './seed-data/skeletons'
 import { curriculumLessons } from './seed-data/curriculum/index'
 import { seedIrodori } from './seed-irodori'
+import { SEED_VERSION, SEED_VERSION_KEY } from './seed-version'
 import type { SeedLesson, SeedNode, SeedQuestion, SeedKanaCharacter } from './seed-data/types'
 
 async function main() {
@@ -152,8 +153,21 @@ async function main() {
   const hiraganaLesson = buildKanaLesson('HIRAGANA', 'Hiragana', hiragana, hBasic, 1)
   const katakanaLesson = buildKanaLesson('KATAKANA', 'Katakana', katakana, kBasic, 2)
 
-  await seedLesson(course.id, sectionByOrder.get(0)!.id, hiraganaLesson)
-  await seedLesson(course.id, sectionByOrder.get(0)!.id, katakanaLesson)
+  // Lesson 4–50: curriculum đầy đủ (nội dung gốc, đã qua content-validate).
+  // Skeleton chỉ còn là fallback cho các order chưa có curriculum.
+  const curriculumOrders = new Set(curriculumLessons.map((l) => l.order))
+  const fallbackSkeletons = lessonSkeletons.filter((s) => !curriculumOrders.has(s.order))
+  const allLessons = [lesson1, lesson2, lesson3, ...curriculumLessons, ...fallbackSkeletons]
+  const totalLessons = allLessons.length + 2 // + 2 bài kana
+  let seeded = 0
+  const seedLogged = async (sectionId: string, l: SeedLesson) => {
+    await seedLesson(course.id, sectionId, l)
+    seeded++
+    console.log(`  ✓ [${String(seeded).padStart(2)}/${totalLessons}] ${l.slug} — ${l.title}`)
+  }
+
+  await seedLogged(sectionByOrder.get(0)!.id, hiraganaLesson)
+  await seedLogged(sectionByOrder.get(0)!.id, katakanaLesson)
 
   /* ----------------------------- Lessons 1-50 ---------------------------- */
   const sectionForLessonOrder = (order: number) => {
@@ -165,13 +179,8 @@ async function main() {
     return sectionByOrder.get(6)!
   }
 
-  // Lesson 4–50: curriculum đầy đủ (nội dung gốc, đã qua content-validate).
-  // Skeleton chỉ còn là fallback cho các order chưa có curriculum.
-  const curriculumOrders = new Set(curriculumLessons.map((l) => l.order))
-  const fallbackSkeletons = lessonSkeletons.filter((s) => !curriculumOrders.has(s.order))
-
-  for (const l of [lesson1, lesson2, lesson3, ...curriculumLessons, ...fallbackSkeletons]) {
-    await seedLesson(course.id, sectionForLessonOrder(l.order).id, l)
+  for (const l of allLessons) {
+    await seedLogged(sectionForLessonOrder(l.order).id, l)
   }
 
   /* ------------------------ Demo leaderboard users ----------------------- */
@@ -233,6 +242,15 @@ async function main() {
   console.log('✅ Seed hoàn tất:', counts)
   console.log('Admin login: admin@nihongogo.local / admin12345')
   console.log('Demo login:  demo@nihongogo.local / demo12345')
+
+  /* -------- Đánh dấu seed hoàn tất (predev dựa vào đây) ------------------ */
+  // MUST ở cuối cùng: DB thiếu marker này bị coi là seed dở và sẽ được setup
+  // lại tự động ở lần `bun run dev` kế tiếp.
+  await db.systemConfig.upsert({
+    where: { key: SEED_VERSION_KEY },
+    update: { value: JSON.stringify(SEED_VERSION) },
+    create: { key: SEED_VERSION_KEY, value: JSON.stringify(SEED_VERSION) },
+  })
 }
 
 /* ============================ helpers ================================= */
