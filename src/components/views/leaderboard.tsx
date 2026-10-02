@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Trophy, TrendingUp, TrendingDown, Minus, Radio, Zap, Users } from 'lucide-react'
+import { Trophy, TrendingUp, TrendingDown, Minus, Radio, Zap, Users, RotateCw } from 'lucide-react'
 import { api } from '@/lib/client/api'
-import { useHashRoute } from '@/components/app/router'
 import { useLeaderboardLive, type LiveGain } from '@/components/app/use-leaderboard-live'
 import { LoadingBlock, ErrorBlock, PageHeader, AvatarBubble } from '@/components/shared/widgets'
 import { DynamicIcon } from '@/components/shared/icon'
@@ -46,6 +45,7 @@ const GAIN_REASON_LABEL: Record<string, string> = {
   ACHIEVEMENT_REWARD: 'Thưởng thành tích',
   REVIEW: 'Ôn tập',
   PRACTICE: 'Luyện tập',
+  CHALLENGE: 'Thử thách hàng ngày',
 }
 
 const GAIN_MAX_AGE_MS = 10 * 60_000 // chip quá 10 phút tự ẩn
@@ -60,26 +60,37 @@ function relativeTime(at: number, now: number): string {
 
 /* ------------------------------ Live strip ------------------------------- */
 
-function LiveStatusStrip() {
-  const { connected, onlineCount, recentGains } = useLeaderboardLive()
+function LiveStatusStrip({
+  connected,
+  onlineCount,
+  recentGains,
+  lastSyncAt,
+  onReconnect,
+}: {
+  connected: boolean
+  onlineCount: number
+  recentGains: LiveGain[]
+  lastSyncAt: number
+  onReconnect: () => void
+}) {
   const [now, setNow] = useState(() => Date.now())
 
-  // Tick 30s để làm mới nhãn thời gian tương đối của chip
+  // Tick 15s để làm mới nhãn thời gian tương đối (chip + last-sync)
   useEffect(() => {
-    if (recentGains.length === 0) return
-    const t = setInterval(() => setNow(Date.now()), 30_000)
+    const t = setInterval(() => setNow(Date.now()), 15_000)
     return () => clearInterval(t)
-  }, [recentGains.length])
+  }, [])
 
   const freshGains = recentGains.filter((g: LiveGain) => now - g.at < GAIN_MAX_AGE_MS)
+  const syncLabel = lastSyncAt > 0 ? clockTime(lastSyncAt) : null
 
   return (
-    <div className="rounded-2xl border bg-card p-3 mb-4 flex items-center gap-3" role="status" aria-label="Trạng thái trực tiếp bảng xếp hạng">
+    <div className="rounded-2xl border bg-card p-3 mb-4 flex items-center gap-3 flex-wrap" role="status" aria-label="Trạng thái trực tiếp bảng xếp hạng">
       <span className="flex items-center gap-1.5 shrink-0">
         <span
           className={cn(
-            'h-2.5 w-2.5 rounded-full animate-pulse',
-            connected ? 'bg-success' : 'bg-muted-foreground/40'
+            'h-2.5 w-2.5 rounded-full',
+            connected ? 'bg-success animate-pulse' : 'bg-muted-foreground/40'
           )}
           aria-hidden
         />
@@ -96,6 +107,25 @@ function LiveStatusStrip() {
         </span>
       )}
 
+      {!connected && (
+        <span className="flex items-center gap-2 shrink-0">
+          {syncLabel && (
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              Dữ liệu lúc {syncLabel}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onReconnect}
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Thử kết nối lại bảng xếp hạng trực tiếp"
+          >
+            <RotateCw className="h-3 w-3" aria-hidden />
+            Kết nối lại
+          </button>
+        </span>
+      )}
+
       {connected && freshGains.length > 0 && (
         <span className="flex gap-2 overflow-x-auto nice-scroll min-w-0 flex-1 py-0.5" aria-label="Hoạt động XP gần đây">
           {freshGains.map((g) => (
@@ -104,7 +134,7 @@ function LiveStatusStrip() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="shrink-0 rounded-full border bg-card px-2.5 py-1 text-xs flex items-center gap-1.5 whitespace-nowrap"
+              className="shrink-0 rounded-full border bg-card px-2.5 py-1 text-xs flex items-center gap-1.5 whitespace-nowrap cursor-default"
               title={GAIN_REASON_LABEL[g.reason] ?? g.reason}
             >
               <Zap className="h-3 w-3 text-warning shrink-0" aria-hidden />
@@ -119,11 +149,21 @@ function LiveStatusStrip() {
   )
 }
 
+/** 'HH:MM' của một epoch-ms (giờ máy người xem). */
+function clockTime(at: number): string {
+  const d = new Date(at)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 export function LeaderboardView() {
   const [league, setLeague] = useState<string | null>(null)
+  const live = useLeaderboardLive()
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['leaderboard', league],
     queryFn: () => api<LeaderboardDTO>(`/api/leaderboard${league ? `?league=${league}` : ''}`),
+    // Socket rớt → tự làm mới dữ liệu định kỳ để bảng vẫn cập nhật
+    refetchInterval: live.connected ? false : 45_000,
+    refetchIntervalInBackground: false,
   })
 
   const daysLeft = data ? Math.max(0, Math.ceil((new Date(data.endsAt).getTime() - Date.now()) / 86400000)) : 0
@@ -139,8 +179,16 @@ export function LeaderboardView() {
         sub={`Mùa giải ${data.seasonKey} · còn ${daysLeft} ngày · XP do server xác thực`}
       />
 
-      {/* Live strip — cập nhật realtime qua socket.io (mini-service leaderboard-live) */}
-      <LiveStatusStrip />
+      {/* Live strip — cập nhật realtime qua socket.io (mini-service leaderboard-live);
+          khi socket không nối được: hiện thời điểm đồng bộ + nút kết nối lại,
+          dữ liệu tự làm mới qua polling 45s */}
+      <LiveStatusStrip
+        connected={live.connected}
+        onlineCount={live.onlineCount}
+        recentGains={live.recentGains}
+        lastSyncAt={live.lastSyncAt}
+        onReconnect={live.reconnect}
+      />
 
       {/* League tabs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">

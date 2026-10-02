@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { dayStartEpoch, todayInTz, userTimezone } from '@/lib/datetime'
+import { dateInTz, dayStartEpoch, shiftDate, todayInTz, userTimezone } from '@/lib/datetime'
 import type { QuestionDataShape } from '@/server/domain/grading'
 import { hashStr } from './quest-utils'
 
@@ -27,11 +27,45 @@ export interface ChallengeInfo {
   xpEarned: number
   accuracy: number
   correctCount: number
+  /** Số ngày thử thách liên tiếp (kể cả hôm nay nếu đã xong). */
+  challengeStreak: number
+}
+
+/**
+ * Chuỗi ngày hoàn thành thử thách liên tiếp (theo timezone user).
+ * Hôm nay chưa xong → đếm lùi từ hôm qua (không phá chuỗi hiện tại).
+ */
+export async function getChallengeStreak(userId: string): Promise<number> {
+  const user = await db.user.findUnique({ where: { id: userId }, include: { profile: true } })
+  const tz = userTimezone(user?.profile?.timezone)
+  const today = todayInTz(tz)
+
+  const rows = await db.lessonSession.findMany({
+    where: { userId, sessionType: 'CHALLENGE', status: 'COMPLETED' },
+    select: { startedAt: true },
+    orderBy: { startedAt: 'desc' },
+    take: 400, // đủ cho chuỗi > 1 năm
+  })
+  if (rows.length === 0) return 0
+
+  const doneDays = new Set(rows.map((r) => dateInTz(r.startedAt, tz)))
+  // Chưa xong hôm nay → bắt đầu đếm từ hôm qua để không "gãy" chuỗi giữa ngày
+  let cursor = doneDays.has(today) ? today : shiftDate(today, -1)
+  let streak = 0
+  while (doneDays.has(cursor)) {
+    streak++
+    cursor = shiftDate(cursor, -1)
+    if (streak >= 400) break // an toàn vô hạn
+  }
+  return streak
 }
 
 /** Trạng thái thử thách hôm nay của user (theo timezone user). */
 export async function getChallengeInfo(userId: string): Promise<ChallengeInfo> {
-  const user = await db.user.findUnique({ where: { id: userId }, include: { profile: true } })
+  const [user, challengeStreak] = await Promise.all([
+    db.user.findUnique({ where: { id: userId }, include: { profile: true } }),
+    getChallengeStreak(userId),
+  ])
   const tz = userTimezone(user?.profile?.timezone)
   const today = todayInTz(tz)
   const dayStart = new Date(dayStartEpoch(new Date(), tz))
@@ -52,6 +86,7 @@ export async function getChallengeInfo(userId: string): Promise<ChallengeInfo> {
         ? Math.round((session.correctCount / session.totalQuestions) * 100)
         : 0,
     correctCount: session?.status === 'COMPLETED' ? session.correctCount : 0,
+    challengeStreak,
   }
 }
 

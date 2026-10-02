@@ -27,7 +27,7 @@ export const GET = route(async (req: NextRequest) => {
     }),
     db.sRSItem.findMany({
       where: { userId: user.id, itemType: 'VOCAB' },
-      select: { itemKey: true, state: true, mastery: true, reviewCount: true, lapseCount: true },
+      select: { itemKey: true, state: true, mastery: true, reviewCount: true, lapseCount: true, nextReviewAt: true },
     }),
   ])
 
@@ -35,9 +35,15 @@ export const GET = route(async (req: NextRequest) => {
   const srsByTerm = new Map(srsItems.map((s) => [s.itemKey, s]))
   const statusOf = (term: string) => {
     const s = srsByTerm.get(term)
-    if (!s) return { status: 'NEW' as const, mastery: 0 }
+    if (!s) return { status: 'NEW' as const, mastery: 0, reviewCount: 0, lapseCount: 0, nextReviewAt: null }
     const weak = s.lapseCount >= 2 || (s.reviewCount >= 2 && s.mastery <= 2 && s.state !== 'MASTERED')
-    return { status: weak ? ('WEAK' as const) : (s.state as 'LEARNING' | 'REVIEW' | 'MASTERED'), mastery: s.mastery }
+    return {
+      status: weak ? ('WEAK' as const) : (s.state as 'LEARNING' | 'REVIEW' | 'MASTERED'),
+      mastery: s.mastery,
+      reviewCount: s.reviewCount,
+      lapseCount: s.lapseCount,
+      nextReviewAt: s.nextReviewAt?.toISOString() ?? null,
+    }
   }
 
   const lessonById = new Map(lessons.map((l) => [l.id, l]))

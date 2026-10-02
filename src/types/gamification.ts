@@ -22,6 +22,7 @@ export type AchievementMetric =
   | 'SPEAKING_NODES'
   | 'MISTAKES_RESOLVED'
   | 'QUESTS_COMPLETED'
+  | 'CHALLENGE_STREAK'
 
 export type SrsRating = 'AGAIN' | 'HARD' | 'GOOD' | 'EASY'
 

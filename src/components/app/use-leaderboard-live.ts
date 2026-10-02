@@ -59,11 +59,17 @@ export function useLeaderboardLive(): {
   onlineCount: number
   recentGains: LiveGain[]
   top: LiveTopRow[]
+  /** Lần cuối nhận snapshot từ server (epoch-ms, 0 = chưa bao giờ). */
+  lastSyncAt: number
+  /** Thử kết nối lại socket (tạo kết nối mới). */
+  reconnect: () => void
 } {
   const [connected, setConnected] = useState(false)
   const [onlineCount, setOnlineCount] = useState(0)
   const [recentGains, setRecentGains] = useState<LiveGain[]>([])
   const [top, setTop] = useState<LiveTopRow[]>([])
+  const [lastSyncAt, setLastSyncAt] = useState(0)
+  const [session, setSession] = useState(0)
 
   useEffect(() => {
     // Không dùng forceNew để tận dụng reconnect; URL relative theo origin trang.
@@ -84,6 +90,7 @@ export function useLeaderboardLive(): {
     socket.on('snapshot', (data: SnapshotPayload) => {
       if (Array.isArray(data?.rows)) setTop(data.rows)
       if (typeof data?.onlineCount === 'number') setOnlineCount(data.onlineCount)
+      setLastSyncAt(Date.now())
     })
 
     socket.on('top', (data: TopPayload) => {
@@ -103,7 +110,14 @@ export function useLeaderboardLive(): {
       socket.removeAllListeners()
       socket.disconnect()
     }
-  }, [])
+  }, [session])
 
-  return { connected, onlineCount, recentGains, top }
+  return {
+    connected,
+    onlineCount,
+    recentGains,
+    top,
+    lastSyncAt,
+    reconnect: () => setSession((s) => s + 1),
+  }
 }

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import type { AchievementProgress } from '@/types/gamification'
 import { track } from './analytics'
+import { getChallengeStreak } from './dailyChallenge'
 
 /** Achievements — server check & unlock, có thưởng XP. */
 
@@ -37,12 +38,13 @@ export async function computeMetrics(userId: string): Promise<Record<string, num
   })
   if (!user) return {}
 
-  const [kanaMastered, kanjiMastered, vocabMastered, mistakesResolved, questsCompleted] = await Promise.all([
+  const [kanaMastered, kanjiMastered, vocabMastered, mistakesResolved, questsCompleted, challengeStreak] = await Promise.all([
     db.sRSItem.count({ where: { userId, itemType: 'KANA', mastery: { gte: 3 } } }),
     db.sRSItem.count({ where: { userId, itemType: 'KANJI', mastery: { gte: 3 } } }),
     db.sRSItem.count({ where: { userId, itemType: 'VOCAB', mastery: { gte: 3 } } }),
     db.mistake.count({ where: { userId, resolvedAt: { not: null } } }),
     db.userDailyQuest.count({ where: { userId, completedAt: { not: null } } }),
+    getChallengeStreak(userId),
   ])
 
   const p = user.progress
@@ -59,6 +61,7 @@ export async function computeMetrics(userId: string): Promise<Record<string, num
     VOCAB_MASTERED: vocabMastered,
     MISTAKES_RESOLVED: mistakesResolved,
     QUESTS_COMPLETED: questsCompleted,
+    CHALLENGE_STREAK: challengeStreak,
   }
 }
 

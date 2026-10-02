@@ -1,6 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import nextDynamic from 'next/dynamic'
 import { AppProviders } from './providers'
 import { useHashRoute } from './router'
 import { useAuth } from './use-auth'
@@ -22,9 +23,20 @@ import { QuestsView } from '@/components/views/quests'
 import { AchievementsView } from '@/components/views/achievements'
 import { ProfileView } from '@/components/views/profile'
 import { SettingsView } from '@/components/views/settings'
-import { AdminView } from '@/components/views/admin'
 import { EmptyBlock } from '@/components/shared/widgets'
 import { Button } from '@/components/ui/button'
+
+// Admin CMS nặng (bảng, dialog, canvas) — lazy-load để cắt khỏi bundle chính;
+// chỉ admin/editor mới bao giờ tải chunk này.
+const AdminView = nextDynamic(() => import('@/components/views/admin').then((m) => ({ default: m.AdminView })), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3" aria-busy="true">
+      <div className="animate-pulse"><LogoMark className="h-12 w-12" /></div>
+      <p className="text-sm text-muted-foreground font-semibold">Đang mở bàn điều khiển…</p>
+    </div>
+  ),
+})
 
 function Splash() {
   return (

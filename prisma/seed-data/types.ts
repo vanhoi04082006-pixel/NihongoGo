@@ -308,6 +308,7 @@ export type AchievementMetric =
   | 'SPEAKING_NODES'
   | 'MISTAKES_RESOLVED'
   | 'QUESTS_COMPLETED'
+  | 'CHALLENGE_STREAK'
 
 export interface SeedAchievement {
   code: string

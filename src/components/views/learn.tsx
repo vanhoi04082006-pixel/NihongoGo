@@ -1621,7 +1621,7 @@ function TodayHub({
                   <span className="block text-[10px] font-bold uppercase tracking-[0.18em] opacity-85">
                     Tiếp tục học
                   </span>
-                  <span className="block text-[15px] max-w-[180px] @xl:max-w-[240px] truncate">{nextNode.node.title}</span>
+                  <span className="block text-[15px] max-w-[210px] @xl:max-w-[260px] leading-snug line-clamp-2">{nextNode.node.title}</span>
                 </span>
               ) : (
                 <span className="text-[15px] uppercase">Vào ôn tập</span>
@@ -1712,6 +1712,7 @@ interface ChallengeInfoDTO {
   xpEarned: number
   accuracy: number
   correctCount: number
+  challengeStreak: number
 }
 
 /**
@@ -1781,6 +1782,16 @@ function DailyChallengeCard() {
             <span className="text-[10px] font-bold rounded-full bg-success text-white px-2 py-0.5 uppercase tracking-wide">Xong</span>
           ) : (
             <span className="text-[10px] font-bold rounded-full bg-warning text-white px-2 py-0.5 uppercase tracking-wide">+15 XP</span>
+          )}
+          {data.challengeStreak > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-bold rounded-full bg-destructive/10 text-destructive px-2 py-0.5"
+              title={`Chuỗi ${data.challengeStreak} ngày hoàn thành thử thách liên tiếp`}
+            >
+              <Flame className="h-3 w-3 fill-destructive/30" aria-hidden />
+              {data.challengeStreak} ngày
+              <span className="sr-only">chuỗi thử thách liên tiếp</span>
+            </span>
           )}
         </p>
         <p className="text-xs text-muted-foreground leading-snug mt-0.5">
