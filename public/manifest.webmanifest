@@ -1,0 +1,55 @@
+{
+  "name": "NihongoGo — Học tiếng Nhật mỗi ngày",
+  "short_name": "NihongoGo",
+  "description": "Nền tảng học tiếng Nhật gamified dành cho người Việt: kana, kanji, 50 bài sơ cấp, luyện nghe - nói - đọc - viết, SRS ôn tập thông minh.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "vi",
+  "dir": "ltr",
+  "background_color": "#faf7f1",
+  "theme_color": "#4f46e5",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Học theo hành trình",
+      "short_name": "Học",
+      "url": "/#/",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Ôn tập SRS",
+      "short_name": "Ôn tập",
+      "url": "/#/review",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bảng xếp hạng",
+      "short_name": "Xếp hạng",
+      "url": "/#/leaderboard",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

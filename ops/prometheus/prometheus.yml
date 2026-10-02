@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # NihongoGo app — health/metrics endpoint
+  - job_name: 'nihongogo-app'
+    metrics_path: /api/health/live
+    static_configs:
+      - targets: ['app:3000']
+
+  # Prometheus tự giám sát
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

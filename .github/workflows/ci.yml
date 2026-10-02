@@ -1,0 +1,106 @@
+# NihongoGo — CI (GitHub Actions)
+#
+# Gates độc lập theo đúng nguyên tắc: lint ≠ typecheck ≠ build
+# (Next.js 16 `next build` KHÔNG tự chạy linter — mỗi gate phải chạy riêng).
+#
+# Ghi chú: test suite (bun test) gồm unit + integration (tự setup SQLite
+# riêng trong tests/.tmp — db push + seed) chạy ở job `test`.
+#
+# Bảo mật:
+# - permissions tối thiểu (contents: read)
+# - KHÔNG dùng pull_request_target với code không tin cậy
+# - secret chỉ qua GitHub Secrets/Environments
+# - (Khuyến nghị production) pin các action theo full commit SHA để tham chiếu
+#   immutable; ở đây dùng tag để mẫu dễ đọc.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx prisma generate
+      - run: bunx tsc --noEmit -p tsconfig.json
+
+  content:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Validate nội dung Lesson 4–50
+        run: bun scripts/content-validate.ts
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx prisma generate
+      # Unit (pure) + Integration (tự setup SQLite riêng trong tests/.tmp —
+      # db push + seed, không cần service ngoài)
+      - run: bun test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx prisma generate
+      - name: Cài Playwright Chromium
+        run: bunx playwright install chromium --with-deps
+      - name: E2E — đăng ký / đăng nhập / học bài / test-out / unlock
+        run: bunx playwright test
+        env:
+          CI: "true"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx prisma generate
+      - env:
+          DATABASE_URL: "file:./ci-placeholder.db"
+        run: bun run build
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (không push trên PR)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: nihongogo:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

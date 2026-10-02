@@ -1,2 +1,78 @@
-skills/
-node_modules/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files — KHÔNG commit .env thật; .env.example là mẫu cho người clone
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+local-*
+.claude
+.z-ai-config
+*.log
+dev.log
+dev.out.log
+test
+prompt
+
+server.log
+# Skills directory
+/skills/
+
+# local agent artifacts / platform files
+/tool-results/
+/.cache/
+/.zscripts/
+/agent-ctx/
+/download/
+/upload/
+/db/*.db
+/db/*.db-journal
+/worklog.md
+prompt
+# Test artifacts (SQLite integration DB)
+tests/.tmp/
+
+# Playwright E2E artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# DB backups local
+db/*.bak-*

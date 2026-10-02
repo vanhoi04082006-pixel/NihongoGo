@@ -1,0 +1,443 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* --- Baloo 2 (variable 400–800) — self-host, KHÔNG fetch Google lúc build ---
+   Subset unicode-range y hệt Google Fonts CDN → trình duyệt chỉ tải subset cần dùng.
+   Font UI chính, hỗ trợ đầy đủ tiếng Việt. */
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/baloo-2-vietnamese.woff2") format("woff2");
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/baloo-2-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/baloo-2-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-app-sans);
+  --font-mono: var(--font-app-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-sakura: var(--sakura);
+  --color-sakura-foreground: var(--sakura-foreground);
+  --color-matcha: var(--success);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.75rem;
+  /* Font stacks — Baloo 2 self-host; CJK fonts load runtime từ Google Fonts CDN
+     (xem <head> trong layout.tsx), fallback sang font Nhật có sẵn của hệ thống. */
+  --font-app-rounded: "Baloo 2", "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-jp-rounded: "M PLUS Rounded 1c", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --font-jp-serif: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif;
+  --font-app-sans: "Baloo 2", "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-app-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  /* NihongoGo — Japanese modern: cream nền, indigo chủ đạo */
+  --background: #faf7f1;
+  --foreground: #2b2620;
+  --card: #ffffff;
+  --card-foreground: #2b2620;
+  --popover: #ffffff;
+  --popover-foreground: #2b2620;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #f1ece2;
+  --secondary-foreground: #443e35;
+  --muted: #f1ece2;
+  --muted-foreground: #847c6e;
+  --accent: #f6e9ef;
+  --accent-foreground: #96305a;
+  --destructive: #e14d4d;
+  --border: #e7e0d3;
+  --input: #e7e0d3;
+  --ring: #4f46e5;
+  --success: #2f9e62;
+  --success-foreground: #ffffff;
+  --warning: #e8a13c;
+  --warning-foreground: #ffffff;
+  --sakura: #e8609a;
+  --sakura-foreground: #ffffff;
+  --chart-1: #4f46e5;
+  --chart-2: #e8609a;
+  --chart-3: #2f9e62;
+  --chart-4: #e8a13c;
+  --chart-5: #7c6fe8;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2b2620;
+  --sidebar-primary: #4f46e5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1ece2;
+  --sidebar-accent-foreground: #2b2620;
+  --sidebar-border: #e7e0d3;
+  --sidebar-ring: #4f46e5;
+}
+
+.dark {
+  --background: #16131d;
+  --foreground: #f0ede7;
+  --card: #1f1b29;
+  --card-foreground: #f0ede7;
+  --popover: #1f1b29;
+  --popover-foreground: #f0ede7;
+  --primary: #8b7cf6;
+  --primary-foreground: #14101f;
+  --secondary: #2a2537;
+  --secondary-foreground: #d8d3c8;
+  --muted: #2a2537;
+  --muted-foreground: #a39b8e;
+  --accent: #352439;
+  --accent-foreground: #f2a0c2;
+  --destructive: #ef6b6b;
+  --border: #322d42;
+  --input: #322d42;
+  --ring: #8b7cf6;
+  --success: #43b877;
+  --success-foreground: #0e1a13;
+  --warning: #f0b454;
+  --warning-foreground: #241a08;
+  --sakura: #f077a8;
+  --sakura-foreground: #241018;
+  --chart-1: #8b7cf6;
+  --chart-2: #f077a8;
+  --chart-3: #43b877;
+  --chart-4: #f0b454;
+  --chart-5: #b0a6f5;
+  --sidebar: #1a1622;
+  --sidebar-foreground: #f0ede7;
+  --sidebar-primary: #8b7cf6;
+  --sidebar-primary-foreground: #14101f;
+  --sidebar-accent: #2a2537;
+  --sidebar-accent-foreground: #f0ede7;
+  --sidebar-border: #322d42;
+  --sidebar-ring: #8b7cf6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-app-rounded), var(--font-jp-rounded), system-ui, sans-serif;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--sakura) 30%, transparent);
+  }
+}
+
+/* --- Nút 3D chunky kiểu Duolingo ---
+   Viền dưới dày màu đậm hơn nền, nhấn thì lún xuống. Màu viền tính bằng
+   color-mix từ token tương ứng nên tự ăn theo dark mode. */
+.btn-3d {
+  --btn3d: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 0 0 var(--btn3d);
+  transition: transform 80ms ease, box-shadow 80ms ease, filter 150ms ease, background-color 150ms ease;
+}
+.btn-3d:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.btn-3d:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 0 var(--btn3d);
+}
+.btn-3d:disabled {
+  /* Xám đậm hơn hẳn nền để trạng thái "chưa thể bấm" vẫn nhìn rõ (kiểu Duolingo #e5e5e5/#a5a5a5) */
+  background: color-mix(in srgb, var(--muted) 86%, var(--foreground));
+  color: color-mix(in srgb, var(--muted-foreground) 92%, transparent);
+  --btn3d: color-mix(in srgb, var(--muted) 70%, var(--foreground));
+  box-shadow: 0 4px 0 0 var(--btn3d);
+  filter: none;
+}
+.btn-3d-primary { --btn3d: color-mix(in srgb, var(--primary) 70%, #000); }
+.btn-3d-success { --btn3d: color-mix(in srgb, var(--success) 62%, #000); }
+.btn-3d-destructive { --btn3d: color-mix(in srgb, var(--destructive) 68%, #000); }
+.btn-3d-warning { --btn3d: color-mix(in srgb, var(--warning) 70%, #000); }
+.btn-3d-sakura { --btn3d: color-mix(in srgb, var(--sakura) 68%, #000); }
+.btn-3d-secondary { --btn3d: color-mix(in srgb, var(--secondary) 70%, var(--foreground)); }
+
+/* --- Node học trên Learning Path: tròn dày, có "mép" 3D dưới đáy --- */
+.node-3d {
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+.node-3d-primary { box-shadow: 0 6px 0 0 color-mix(in srgb, var(--primary) 66%, #000); }
+.node-3d-success { box-shadow: 0 6px 0 0 color-mix(in srgb, var(--success) 60%, #000); }
+.node-3d-warning { box-shadow: 0 6px 0 0 color-mix(in srgb, var(--warning) 68%, #000); }
+.node-3d-locked { box-shadow: 0 5px 0 0 color-mix(in srgb, var(--muted) 72%, var(--foreground)); }
+.node-3d:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 0 color-mix(in srgb, var(--primary) 66%, #000);
+}
+
+/* Bong bóng BẮT ĐẦU nhún nhảy trên node hiện tại */
+@keyframes bubble-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.animate-bubble-bounce {
+  animation: bubble-bounce 1.6s ease-in-out infinite;
+}
+
+/* --- Tiện ích chung --- */
+.jp {
+  font-feature-settings: "palt" 1;
+  letter-spacing: 0.01em;
+}
+
+/* Chữ Nhật display kiểu bút lông (Noto Serif JP runtime CDN, fallback font hệ thống) —
+   dùng cho thuật ngữ lớn: từ vựng, ngữ pháp, ký tự kana/kanji */
+.jp-serif {
+  font-family: var(--font-jp-serif);
+  font-feature-settings: "palt" 1;
+}
+
+/* Số liệu đều tăm tắp trong badge/stat */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quick link palette xuất hiện lệch nhịp */
+@keyframes quick-link-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.quick-link-in {
+  animation: quick-link-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+/* Scrollbar đẹp cho list dài */
+.nice-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
+}
+.nice-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.nice-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+  border-radius: 8px;
+}
+.nice-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Pattern seigaiha mờ cho hero */
+.seigaiha {
+  background-image: radial-gradient(circle at 50% 100%, transparent 9px, color-mix(in srgb, var(--primary) 7%, transparent) 10px, transparent 11px),
+    radial-gradient(circle at 0 100%, transparent 9px, color-mix(in srgb, var(--primary) 7%, transparent) 10px, transparent 11px),
+    radial-gradient(circle at 100% 100%, transparent 9px, color-mix(in srgb, var(--primary) 7%, transparent) 10px, transparent 11px);
+  background-size: 24px 12px;
+}
+
+/* Đường nối learning path */
+.path-line {
+  background-image: linear-gradient(to bottom, var(--border) 55%, transparent 45%);
+  background-size: 2px 14px;
+  background-repeat: repeat-y;
+}
+
+/* Pulse nhẹ cho node "available" */
+@keyframes node-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--primary) 0%, transparent); }
+}
+.node-available-ring {
+  animation: node-glow 2.2s ease-in-out infinite;
+}
+
+/* Đáp án đúng xuất hiện khi trả lời sai */
+@keyframes pop-in {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* Node lộ trình: trượt lên + fade dần theo nhịp so le khi tải */
+@keyframes node-enter {
+  0% { transform: translateY(16px) scale(0.85); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.animate-node-enter {
+  animation: node-enter 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  animation-delay: calc(var(--node-i, 0) * 70ms);
+}
+
+/* Đường nối lộ trình hiện ra sau node đầu */
+@keyframes path-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-path-fade {
+  animation: path-fade 0.6s ease-out 0.2s both;
+}
+
+/* Rung nhẹ khi chọn sai */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+.animate-shake {
+  animation: shake 0.35s ease-in-out both;
+}
+
+/* Mascot TopBar: bồng bềnh nhẹ nhàng khi rảnh */
+@keyframes mascot-idle {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-2px) rotate(1.5deg); }
+}
+.animate-mascot-idle {
+  animation: mascot-idle 2.8s ease-in-out infinite;
+}
+
+/* Mascot TopBar: lắc đuôi khi hover */
+@keyframes mascot-wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1.05); }
+  25% { transform: rotate(-7deg) scale(1.05); }
+  75% { transform: rotate(7deg) scale(1.05); }
+}
+.animate-mascot-wiggle {
+  animation: mascot-wiggle 0.5s ease-in-out infinite;
+}
+
+/* Bay lên + mờ dần (XP popup, badge nổi) */
+@keyframes float-up {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-38px) scale(1.15); opacity: 0; }
+}
+.animate-float-up {
+  animation: float-up 1s ease-out both;
+}
+
+/* Confetti mừng hoàn thành ải */
+@keyframes confetti-fall {
+  0% { transform: translateY(-12px) rotate(0deg); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(560px) rotate(680deg); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  top: -12px;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1);
+  animation-fill-mode: forwards;
+}
+
+/* Tim vỡ: rung + thu nhỏ khi mất tim */
+@keyframes heart-lost {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35) rotate(-8deg); }
+  60% { transform: scale(0.85) rotate(6deg); }
+  100% { transform: scale(1); }
+}
+.animate-heart-lost {
+  animation: heart-lost 0.5s ease-in-out both;
+}
+
+/* Shimmer skeleton */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--muted) 25%, color-mix(in srgb, var(--muted) 60%, var(--card)) 50%, var(--muted) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Nét chữ KanjiVG: nét hiện tại được "viết" dần (dash-offset chạy về 0).
+   pathLength="1" trên <path> chuẩn hoá chiều dài → dasharray 1 = hết nét. */
+@keyframes kvg-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.kvg-current {
+  stroke-dasharray: 1;
+  animation: kvg-draw var(--kvg-dur, 800ms) cubic-bezier(0.3, 0.1, 0.4, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-available-ring,
+  .shimmer,
+  .animate-pop-in,
+  .animate-shake,
+  .animate-float-up,
+  .animate-heart-lost,
+  .animate-bubble-bounce,
+  .animate-mascot-idle,
+  .animate-mascot-wiggle,
+  .animate-node-enter,
+  .animate-path-fade,
+  .confetti-piece,
+  .kvg-current,
+  .quick-link-in {
+    animation: none;
+    stroke-dasharray: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
