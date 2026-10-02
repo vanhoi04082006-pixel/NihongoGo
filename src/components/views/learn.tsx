@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { useQuery } from '@tanstack/react-query'
 import {
   Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake,
@@ -15,6 +16,7 @@ import { LoadingBlock, ErrorBlock, XPBadge, LeagueBadge } from '@/components/sha
 import { AudioButton } from '@/components/shared/audio-button'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -975,6 +977,9 @@ function CollapsedLesson({
 const ZIGZAG_PATTERN = [0, -1, 0, 1] as const
 /** Chiều cao mỗi hàng node (px) — nhịp dọc của con đường. */
 const ROW_H = 118
+/** Tâm nút bấm trong hàng (px): hàng flex items-center → cột (nút + nhãn)
+ *  được căn dọc giữa, tâm nút ≈ 43px từ mép trên hàng (đã đo thực tế). */
+const NODE_CY = 43
 
 function zigzagOffset(i: number, width: number): number {
   const dir = ZIGZAG_PATTERN[i % ZIGZAG_PATTERN.length]!
@@ -1012,7 +1017,7 @@ function ZigzagLessonPath({
   const pathD = useMemo(() => {
     if (width <= 0 || nodes.length < 2) return null
     const cx = (i: number) => width / 2 + zigzagOffset(i, width)
-    const cy = (i: number) => i * ROW_H + ROW_H / 2
+    const cy = (i: number) => i * ROW_H + NODE_CY
     let d = `M ${cx(0)} ${cy(0)}`
     for (let i = 1; i < nodes.length; i++) {
       const x0 = cx(i - 1), y0 = cy(i - 1)
@@ -1023,6 +1028,20 @@ function ZigzagLessonPath({
     return d
   }, [width, nodes.length])
 
+  // Rương báu vật nằm ngay trên con đường — mốc nửa bài (kiểu Duolingo
+  // treasure chest). Mở khi ải ngay sau rương đã hoàn thành.
+  const chest = useMemo(() => {
+    if (width <= 0 || nodes.length < 4) return null
+    const idx = Math.floor(nodes.length / 2)
+    const cx = (i: number) => width / 2 + zigzagOffset(i, width)
+    const cy = (i: number) => i * ROW_H + NODE_CY
+    const x = (cx(idx - 1) + cx(idx)) / 2
+    const y = (cy(idx - 1) + cy(idx)) / 2
+    const after = nodes[idx]
+    const open = !!after && (after.state === 'COMPLETED' || after.state === 'MASTERED')
+    return { x, y, open, hint: after ? after.title : '' }
+  }, [width, nodes])
+
   if (nodes.length === 0) {
     return <p className="text-xs text-muted-foreground py-3 text-center">Nội dung sắp ra mắt</p>
   }
@@ -1032,7 +1051,7 @@ function ZigzagLessonPath({
       {/* Đường đi mờ phía sau các node */}
       {pathD && (
         <svg
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none animate-path-fade"
           width={width || undefined}
           height={height}
           viewBox={`0 0 ${Math.max(width, 1)} ${height}`}
@@ -1050,29 +1069,78 @@ function ZigzagLessonPath({
         </svg>
       )}
 
-      {/* Các node so le */}
+      {/* Các node so le — xuất hiện dần theo nhịp khi tải */}
       <div className="absolute inset-0">
         {nodes.map((node, i) => (
-          <div key={node.id} className="absolute left-0 right-0 flex justify-center" style={{ top: i * ROW_H, height: ROW_H }}>
+          <div
+            key={node.id}
+            className="absolute left-0 right-0 flex items-center justify-center animate-node-enter"
+            style={{ top: i * ROW_H, height: ROW_H, '--node-i': i } as CSSProperties}
+          >
             <div
               className="flex flex-col items-center"
               style={{ transform: `translateX(${width > 0 ? zigzagOffset(i, width) : 0}px)` }}
             >
-              <PathNode node={node} celebrate={celebrateNodeId === node.id} onOpen={onOpenNode} />
+              <PathNode
+                node={node}
+                dir={ZIGZAG_PATTERN[i % ZIGZAG_PATTERN.length]!}
+                celebrate={celebrateNodeId === node.id}
+                onOpen={onOpenNode}
+              />
             </div>
           </div>
         ))}
       </div>
+
+      {/* Rương báu vật — nằm ngay trên con đường giữa hai ải */}
+      {chest && (
+        <div className="absolute z-[2]" style={{ left: chest.x - 20, top: chest.y - 18 }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={
+                  chest.open
+                    ? 'Rương báu vật đã mở'
+                    : `Rương báu vật — hoàn thành ải ${chest.hint} để mở`
+                }
+              >
+                <span className={cn('block', !chest.open && 'animate-mascot-idle')}>
+                  <PathChest open={chest.open} />
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side={chest.x > width / 2 ? 'left' : 'right'} className="max-w-[210px]">
+              <p className="font-extrabold text-[13px] leading-tight">Rương báu vật</p>
+              <p className="mt-0.5 opacity-90">
+                {chest.open ? 'Đã mở — すごい!' : `Mở bằng cách hoàn thành ải “${chest.hint}”.`}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </div>
   )
 }
 
 /* --------------------------------- Path node -------------------------------- */
 
-function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boolean; onOpen: (n: NodeDTO) => void }) {
+function PathNode({
+  node,
+  dir,
+  celebrate,
+  onOpen,
+}: {
+  node: NodeDTO
+  dir: number
+  celebrate: boolean
+  onOpen: (n: NodeDTO) => void
+}) {
   const [showMenu, setShowMenu] = useState(false)
   const isLocked = node.state === 'LOCKED' || node.exerciseCount === 0
   const isDone = node.state === 'COMPLETED' || node.state === 'MASTERED'
+  const isBoss = node.nodeType === 'BOSS'
 
   const stateCls = isLocked
     ? 'bg-muted text-muted-foreground border border-border node-3d node-3d-locked'
@@ -1084,10 +1152,48 @@ function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boole
 
   const isCurrent = node.state === 'AVAILABLE' || node.state === 'IN_PROGRESS'
 
+  const stateLabel = isLocked
+    ? (node.status === 'DRAFT' ? 'Đang biên soạn' : 'Hoàn thành ải trước để mở khóa')
+    : isDone
+      ? `${node.state === 'MASTERED' ? 'Thành thạo' : 'Đã hoàn thành'} · điểm cao nhất ${node.bestScore}%`
+      : 'Sẵn sàng bắt đầu'
+
   return (
-    <div className="relative group">
+    <div className="relative group flex flex-col items-center">
+      {/* Vỏ bọc vừa khít NÚT BẤM — mọi trang trí (bong bóng, mascot, chip BOSS,
+          ring trùm, menu) neo vào đây để bám sát nút chứ không bám nhãn */}
+      <span
+        className={cn(
+          'relative flex flex-col items-center',
+          // Ải trùm (BOSS) — to hơn + viền vàng nét đứt ôm đúng nút
+          isBoss && 'p-1.5 rounded-full border-2 border-dashed border-warning/60',
+        )}
+      >
       {/* Pháo giấy ăn mừng ải vừa thành thạo (cấp vàng) */}
       {celebrate && <NodeConfetti />}
+
+      {/* Chip BOSS — nhãn ải trùm */}
+      {isBoss && !isCurrent && (
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 rounded-full bg-warning text-white text-[9px] font-black uppercase tracking-[0.14em] px-2 py-[3px] shadow-sm pointer-events-none">
+          Boss
+        </span>
+      )}
+
+      {/* Mascot Shiba ngồi cạnh ải hiện tại (kiểu Duolingo) */}
+      {isCurrent && (
+        <Image
+          src="/images/mascot-study.png"
+          alt=""
+          width={64}
+          height={64}
+          aria-hidden
+          className={cn(
+            'pointer-events-none select-none absolute top-0 h-14 w-14 sm:h-16 sm:w-16 object-contain drop-shadow-md animate-mascot-idle',
+            dir <= 0 ? 'left-full ml-1' : 'right-full mr-1',
+          )}
+        />
+      )}
+
       {/* Bong bóng BẮT ĐẦU kiểu Duolingo */}
       {isCurrent && (
         <div className="absolute -top-11 left-1/2 -translate-x-1/2 z-10 animate-bubble-bounce" aria-hidden>
@@ -1097,44 +1203,51 @@ function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boole
           </span>
         </div>
       )}
-      <button
-        onClick={() => {
-          if (isLocked) return
-          if (isDone) {
-            setShowMenu((v) => !v)
-          } else {
-            onOpen(node)
-          }
-        }}
-        disabled={isLocked}
-        title={isLocked ? (node.status === 'DRAFT' ? 'Đang biên soạn' : 'Hoàn thành ải trước để mở khóa') : node.title}
-        aria-label={`${node.title} — ${isLocked ? 'đang khóa' : node.state === 'COMPLETED' || node.state === 'MASTERED' ? 'đã hoàn thành' : 'sẵn sàng'}`}
-        className={cn(
-          'relative h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20 rounded-full flex flex-col items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          stateCls,
-          celebrate && 'animate-pop-in ring-4 ring-warning/40',
-          !isLocked && 'hover:scale-110 active:scale-95',
-          isLocked && 'cursor-not-allowed'
-        )}
-      >
-        {isLocked ? (
-          <Lock className="h-6 w-6" aria-hidden />
-        ) : isDone ? (
-          <Check className="h-8 w-8" strokeWidth={3.5} aria-hidden />
-        ) : (
-          <DynamicIcon name={node.icon} className="h-8 w-8" />
-        )}
-        {node.state === 'MASTERED' && (
-          <Star className="absolute -top-1 -right-1 h-5 w-5 fill-white text-warning" aria-hidden />
-        )}
-      </button>
-
-      {/* Nhãn dưới node — luôn hiển thị (bố cục zigzag không có chỗ ở bên cạnh) */}
-      <div className="mt-1.5 w-[120px] sm:w-[150px] text-center pointer-events-none">
-        <p className={cn('text-[10px] sm:text-[11px] font-bold leading-tight line-clamp-2', isLocked && 'text-muted-foreground')}>
-          {node.title}
-        </p>
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => {
+              if (isLocked) return
+              if (isDone) {
+                setShowMenu((v) => !v)
+              } else {
+                onOpen(node)
+              }
+            }}
+            disabled={isLocked}
+            aria-label={`${node.title} — ${isLocked ? 'đang khóa' : isDone ? 'đã hoàn thành' : 'sẵn sàng'}`}
+            className={cn(
+              'relative rounded-full flex flex-col items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              isBoss ? 'h-20 w-20 sm:h-24 sm:w-24' : 'h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20',
+              stateCls,
+              celebrate && 'animate-pop-in ring-4 ring-warning/40',
+              !isLocked && 'hover:scale-110 active:scale-95',
+              isLocked && 'cursor-not-allowed',
+            )}
+          >
+            {isLocked ? (
+              <Lock className="h-6 w-6" aria-hidden />
+            ) : isDone ? (
+              <Check className="h-8 w-8" strokeWidth={3.5} aria-hidden />
+            ) : (
+              <DynamicIcon name={node.icon} className={isBoss ? 'h-10 w-10' : 'h-8 w-8'} />
+            )}
+            {node.state === 'MASTERED' && (
+              <Star className="absolute -top-1 -right-1 h-5 w-5 fill-white text-warning" aria-hidden />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side={dir <= 0 ? 'left' : 'right'} className="max-w-[220px] px-3 py-2">
+          <p className="font-extrabold text-[13px] leading-tight">{node.title}</p>
+          {isBoss && (
+            <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest opacity-80">Ải trùm cuối bài</p>
+          )}
+          <p className="mt-0.5 opacity-90">{stateLabel}</p>
+          {!isLocked && node.exerciseCount > 0 && (
+            <p className="mt-1 opacity-80 text-[11px]">+{node.xpReward} XP · {node.exerciseCount} câu</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
 
       {/* Menu replay cho node hoàn thành */}
       {showMenu && isDone && (
@@ -1157,7 +1270,54 @@ function PathNode({ node, celebrate, onOpen }: { node: NodeDTO; celebrate: boole
           </a>
         </div>
       )}
+      </span>
+
+      {/* Nhãn dưới node — luôn hiển thị; cao cố định để tâm nút ổn định (NODE_CY) */}
+      <div className="mt-1.5 w-[120px] sm:w-[150px] min-h-[28px] text-center pointer-events-none">
+        <p className={cn('text-[10px] sm:text-[11px] font-bold leading-tight line-clamp-2', isLocked && 'text-muted-foreground')}>
+          {node.title}
+        </p>
+      </div>
     </div>
+  )
+}
+
+/* --------------------------- Rương báu giữa lộ trình -------------------------- */
+
+/** Rương báu vật nhỏ nằm trên con đường (mốc nửa bài, mở theo tiến độ). */
+function PathChest({ open }: { open: boolean }) {
+  return (
+    <span className="relative block h-9 w-10" aria-hidden>
+      {/* Thân rương */}
+      <span
+        className={cn(
+          'absolute bottom-0 left-0 right-0 h-[21px] rounded-b-[7px] border-2 border-[#7c4a21] shadow-sm transition-colors duration-500',
+          open ? 'bg-[#a16207]' : 'bg-[#92500f]',
+        )}
+      />
+      {/* Nắp rương — hé mở khi đã mở */}
+      <span
+        className={cn(
+          'absolute left-[-2px] right-[-2px] top-0 h-[13px] rounded-t-[9px] border-2 border-[#7c4a21] bg-[#b45309] shadow-sm origin-bottom transition-transform duration-500',
+          open && '-rotate-[28deg] -translate-y-1',
+        )}
+      />
+      {/* Khóa vàng — biến mất khi mở */}
+      <span
+        className={cn(
+          'absolute left-1/2 top-[11px] h-3 w-2.5 -translate-x-1/2 rounded-[3px] bg-warning border border-[#7c4a21]/60 transition-opacity duration-300',
+          open && 'opacity-0',
+        )}
+      />
+      {/* Hào quang + tia lấp lánh khi đã mở */}
+      {open && (
+        <>
+          <span className="absolute -inset-1.5 rounded-full bg-warning/25 blur-md" />
+          <Sparkles className="absolute -top-2 -right-2 h-3.5 w-3.5 text-warning animate-pulse" />
+          <Sparkles className="absolute -bottom-1 -left-2 h-3 w-3 text-warning/80 animate-pulse [animation-delay:600ms]" />
+        </>
+      )}
+    </span>
   )
 }
 
