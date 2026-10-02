@@ -21,6 +21,7 @@ interface DailyWord {
   exampleVi: string
   lessonTitle: string | null
   lessonId: string | null
+  lessonSlug: string | null
 }
 
 interface CachedEntry {
@@ -59,7 +60,7 @@ async function pickDailyWord(date: string, cacheKey: string): Promise<DailyWord 
     select: {
       term: true, reading: true, romaji: true, meaningVi: true, pos: true,
       exampleJa: true, exampleVi: true, lessonId: true,
-      lesson: { select: { title: true } },
+      lesson: { select: { title: true, slug: true } },
     },
     orderBy: { createdAt: 'asc' },
   })
@@ -81,6 +82,7 @@ async function pickDailyWord(date: string, cacheKey: string): Promise<DailyWord 
     exampleVi: v.exampleVi,
     lessonTitle: v.lesson?.title ?? null,
     lessonId: v.lessonId,
+    lessonSlug: v.lesson?.slug ?? null,
   }
   cache.set(cacheKey, { word, expiresAt: Date.now() + CACHE_TTL_MS })
   return word
@@ -91,5 +93,28 @@ export const GET = route(async (req: NextRequest) => {
   const tz = user.profile?.timezone || 'Asia/Ho_Chi_Minh'
   const date = todayInTz(tz)
   const word = await pickDailyWord(date, `${tz}:${date}`)
-  return ok({ word })
+  if (!word) return ok({ word })
+
+  // SRS là dữ liệu riêng từng user — không cache, best-effort join theo term.
+  const srs = await db.sRSItem
+    .findUnique({
+      where: { userId_itemType_itemKey: { userId: user.id, itemType: 'VOCAB', itemKey: word.term } },
+      select: { state: true, mastery: true, reviewCount: true, lapseCount: true, nextReviewAt: true },
+    })
+    .catch(() => null)
+
+  return ok({
+    word: {
+      ...word,
+      srs: srs
+        ? {
+            state: srs.state,
+            mastery: srs.mastery,
+            reviewCount: srs.reviewCount,
+            lapseCount: srs.lapseCount,
+            nextReviewAt: srs.nextReviewAt?.toISOString() ?? null,
+          }
+        : null,
+    },
+  })
 })

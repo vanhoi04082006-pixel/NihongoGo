@@ -345,6 +345,7 @@ export function LessonPlayer({
         qc.invalidateQueries({ queryKey: ['learn'] })
         qc.invalidateQueries({ queryKey: ['quests'] })
         qc.invalidateQueries({ queryKey: ['achievements'] })
+        qc.invalidateQueries({ queryKey: ['challenge'] })
       } catch (e) {
         toast.error(e instanceof ApiClientError ? e.message : 'Không hoàn tất được phiên học')
         setPhase('question')

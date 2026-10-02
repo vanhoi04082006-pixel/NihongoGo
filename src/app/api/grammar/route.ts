@@ -16,6 +16,13 @@ interface GrammarItemDTO {
   title: string
   explanationVi: string
   examples: GrammarExampleDTO[]
+  srs: {
+    state: string
+    mastery: number
+    reviewCount: number
+    lapseCount: number
+    nextReviewAt: string | null
+  } | null
 }
 
 /** Parse an toàn chuỗi JSON examples (fallback [] khi hỏng). */
@@ -37,10 +44,11 @@ function parseExamples(raw: string): GrammarExampleDTO[] {
 /**
  * Sổ tay ngữ pháp cho người học: toàn bộ GrammarPoint,
  * nhóm theo bài học PUBLISHED (đã sắp thứ tự) kèm ví dụ đã parse.
+ * Kèm trạng thái SRS từng mẫu câu (mức nhớ 0–5) để hiển thị tiến độ ghi nhớ.
  */
 export const GET = route(async (req: NextRequest) => {
-  await requireUser(req)
-  const [lessons, points] = await Promise.all([
+  const user = await requireUser(req)
+  const [lessons, points, srsItems] = await Promise.all([
     db.lesson.findMany({
       where: { status: 'PUBLISHED' },
       select: { id: true, slug: true, title: true, titleJa: true, order: true },
@@ -52,7 +60,13 @@ export const GET = route(async (req: NextRequest) => {
         id: true, code: true, title: true, explanationVi: true, examples: true, lessonId: true,
       },
     }),
+    db.sRSItem.findMany({
+      where: { userId: user.id, itemType: 'GRAMMAR' },
+      select: { itemKey: true, state: true, mastery: true, reviewCount: true, lapseCount: true, nextReviewAt: true },
+    }),
   ])
+
+  const srsByCode = new Map(srsItems.map((s) => [s.itemKey, s]))
 
   const lessonById = new Map(lessons.map((l) => [l.id, l]))
   const groupsMap = new Map<string, {
@@ -77,19 +91,34 @@ export const GET = route(async (req: NextRequest) => {
       }
       groupsMap.set(key, g)
     }
+    const srs = srsByCode.get(p.code)
     g.items.push({
       id: p.id,
       code: p.code,
       title: p.title,
       explanationVi: p.explanationVi,
       examples: parseExamples(p.examples),
+      srs: srs
+        ? {
+            state: srs.state,
+            mastery: srs.mastery,
+            reviewCount: srs.reviewCount,
+            lapseCount: srs.lapseCount,
+            nextReviewAt: srs.nextReviewAt?.toISOString() ?? null,
+          }
+        : null,
     })
   }
 
   const groups = [...groupsMap.values()].sort((a, b) => a.lessonOrder - b.lessonOrder)
+  const allItems = groups.flatMap((g) => g.items)
   return ok({
     groups,
     total: points.length,
     lessonCount: groups.filter((g) => g.lessonId).length,
+    srsCounts: {
+      practiced: allItems.filter((i) => i.srs).length,
+      mastered: allItems.filter((i) => i.srs && (i.srs.mastery >= 4 || i.srs.state === 'MASTERED')).length,
+    },
   })
 })

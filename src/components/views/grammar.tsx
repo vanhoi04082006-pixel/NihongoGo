@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, Search, Sparkles, X } from 'lucide-react'
+import { BookOpen, Search, Sparkles, Star, X } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { LoadingBlock, ErrorBlock, PageHeader, EmptyBlock } from '@/components/shared/widgets'
 import { AudioButton } from '@/components/shared/audio-button'
+import { MasteryDots, SrsMemorySection, type SrsStatusInfo } from '@/components/shared/srs-ui'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +29,11 @@ interface GrammarItemDTO {
   title: string
   explanationVi: string
   examples: GrammarExampleDTO[]
+  srs?: GrammarSrsDTO | null
+}
+
+interface GrammarSrsDTO extends SrsStatusInfo {
+  state: string
 }
 
 interface GrammarGroupDTO {
@@ -42,6 +48,7 @@ interface GrammarResponseDTO {
   groups: GrammarGroupDTO[]
   total: number
   lessonCount: number
+  srsCounts?: { practiced: number; mastered: number }
 }
 
 /* ---------------------- Structure formula (mô hình câu) --------------------- */
@@ -119,6 +126,7 @@ export function GrammarView() {
   }, [data, query, lessonFilter])
 
   const shownCount = groups.reduce((s, g) => s + g.items.length, 0)
+  const srsCounts = data?.srsCounts
 
   if (isLoading) return <LoadingBlock label="Đang tải ngữ pháp…" />
   if (error || !data) return <ErrorBlock message="Không tải được danh sách ngữ pháp." onRetry={() => refetch()} />
@@ -128,7 +136,11 @@ export function GrammarView() {
       <PageHeader
         icon="BookText"
         title="Ngữ pháp"
-        sub={`${data.total} mẫu ngữ pháp · ${data.lessonCount} bài học — cấu trúc, giải thích & ví dụ`}
+        sub={
+          srsCounts && srsCounts.practiced > 0
+            ? `${data.total} mẫu ngữ pháp · ${data.lessonCount} bài — đã luyện ${srsCounts.practiced} · thành thạo ${srsCounts.mastered}`
+            : `${data.total} mẫu ngữ pháp · ${data.lessonCount} bài học — cấu trúc, giải thích & ví dụ`
+        }
       />
 
       {/* Thanh lọc */}
@@ -220,6 +232,14 @@ export function GrammarView() {
                         <p className="jp jp-serif text-lg font-bold leading-tight break-words min-w-0">{p.title}</p>
                         <div className="flex flex-col items-end gap-1.5 shrink-0">
                           <AudioButton text={p.examples[0]?.ja || p.title} size="sm" labelSlow={false} />
+                          {p.srs && (
+                            <span className="inline-flex items-center gap-1">
+                              <MasteryDots mastery={p.srs.mastery} />
+                              {(p.srs.mastery >= 4 || p.srs.state === 'MASTERED') && (
+                                <Star className="h-3.5 w-3.5 fill-warning text-warning" aria-label="Đã thành thạo" />
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-1" aria-hidden>
@@ -317,6 +337,12 @@ function GrammarDetailDialog({
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Cách dùng</h4>
               <p className="text-sm leading-relaxed rounded-2xl bg-muted/40 px-4 py-3">{detail.item.explanationVi}</p>
             </section>
+
+            {/* Tiến độ ghi nhớ SRS của mẫu câu này */}
+            <SrsMemorySection
+              srs={detail.item.srs ?? null}
+              emptyText="Mẫu câu này chưa có trong lịch ôn — luyện trong bài học hoặc ôn tập để bắt đầu theo dõi nhé!"
+            />
 
             {/* Ví dụ — mỗi câu có audio riêng */}
             {detail.item.examples.length > 0 && (

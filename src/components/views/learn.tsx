@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import {
   Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake,
   Rocket, CalendarDays, BookMarked, ChevronUp, ChevronDown, ChevronRight, Map as MapIcon, Zap, GraduationCap, Award,
+  Maximize2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/client/api'
@@ -15,6 +16,7 @@ import { useOverview } from '@/components/app/use-overview'
 import { DynamicIcon } from '@/components/shared/icon'
 import { ErrorBlock, XPBadge, LeagueBadge } from '@/components/shared/widgets'
 import { AudioButton } from '@/components/shared/audio-button'
+import { VocabDetailDialog, type VocabDetailItem } from '@/components/shared/vocab-detail-dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -102,6 +104,8 @@ interface DailyWordDTO {
   exampleVi: string
   lessonTitle: string | null
   lessonId: string | null
+  lessonSlug?: string | null
+  srs?: VocabDetailItem['srs']
 }
 
 /* --------------------------------- View ------------------------------------ */
@@ -1394,9 +1398,25 @@ function WordOfDayCard({ onNavigateVocab }: { onNavigateVocab: () => void }) {
     staleTime: 10 * 60 * 1000,
   })
   const word = data?.word
+  const [detail, setDetail] = useState<{ item: VocabDetailItem; lessonSlug: string | null } | null>(null)
   if (!word) return null
 
   const dateLabel = new Date(`${word.date}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+
+  const openDetail = () =>
+    setDetail({
+      item: {
+        term: word.term,
+        reading: word.reading,
+        romaji: word.romaji,
+        meaningVi: word.meaningVi,
+        pos: word.pos,
+        exampleJa: word.exampleJa,
+        exampleVi: word.exampleVi,
+        srs: word.srs ?? null,
+      },
+      lessonSlug: word.lessonSlug ?? null,
+    })
 
   return (
     <div className="rounded-2xl border bg-gradient-to-br from-sakura/10 via-card to-primary/10 p-4">
@@ -1408,23 +1428,36 @@ function WordOfDayCard({ onNavigateVocab }: { onNavigateVocab: () => void }) {
       </div>
 
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="jp jp-serif text-3xl sm:text-4xl font-bold leading-tight break-words">{word.term}</p>
+        <button
+          type="button"
+          onClick={openDetail}
+          className="text-left min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring group"
+          aria-label={`Xem chi tiết từ ${word.term}`}
+        >
+          <p className="jp jp-serif text-3xl sm:text-4xl font-bold leading-tight break-words group-hover:text-primary transition-colors">{word.term}</p>
           <p className="jp text-sm text-muted-foreground mt-0.5 truncate">
             {word.reading ? `${word.reading} · ` : ''}{word.romaji}
           </p>
-        </div>
+        </button>
         <AudioButton text={word.term} size="sm" className="shrink-0 mt-1" />
       </div>
 
-      <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-        <p className="font-bold text-sm">{word.meaningVi}</p>
+      <button
+        type="button"
+        onClick={openDetail}
+        className="mt-2.5 flex items-center gap-2 flex-wrap text-left w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Xem chi tiết và tiến độ ghi nhớ của từ ${word.term}`}
+      >
+        <p className="font-bold text-sm group-hover:text-primary">{word.meaningVi}</p>
         {word.pos && (
           <span className="text-[10px] font-bold uppercase tracking-wide rounded-full bg-primary/10 text-primary px-2 py-0.5">
             {word.pos}
           </span>
         )}
-      </div>
+        <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+          <Maximize2 className="h-3 w-3" aria-hidden /> Chi tiết
+        </span>
+      </button>
 
       <div className="mt-3 rounded-xl bg-background/60 border border-border/60 p-2.5">
         <p className="jp text-sm font-semibold leading-relaxed">{word.exampleJa}</p>
@@ -1438,6 +1471,9 @@ function WordOfDayCard({ onNavigateVocab }: { onNavigateVocab: () => void }) {
         <BookMarked className="h-3.5 w-3.5" aria-hidden />
         {word.lessonTitle ? `Từ vựng: ${word.lessonTitle}` : 'Xem kho từ vựng'}
       </button>
+
+      {/* Chi tiết từ — dialog dùng chung với Vocabulary */}
+      <VocabDetailDialog detail={detail} onClose={() => setDetail(null)} />
     </div>
   )
 }
