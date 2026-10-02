@@ -42,6 +42,8 @@ interface SessionEntry {
     explanation?: string
     itemRefType?: string | null
     itemRefKey?: string | null
+    /** Chỉ mode REVIEW: nguồn của mục ôn (node/lesson gặp lần đầu, hoặc sổ ôn nếu lưu tay). */
+    sourceLabel?: string
   }
 }
 
@@ -136,6 +138,29 @@ export async function createMistakeSession(userId: string) {
   return createSessionInternal(userId, entries, 'MISTAKE', null, 'Luyện lại lỗi sai')
 }
 
+/**
+ * Tìm nguồn của mục ôn (VOCAB/KANJI/GRAMMAR/KANA): node PUBLISHED đầu tiên chứa câu hỏi
+ * tham chiếu item này → trả về nhãn "Bài · node". Không tìm thấy (mục lưu tay vào sổ ôn) → null.
+ */
+async function resolveItemSourceLabel(itemType: string, itemKey: string): Promise<string | null> {
+  const q = await db.question.findFirst({
+    where: {
+      itemRefType: itemType,
+      itemRefKey: itemKey,
+      exercise: {
+        status: 'PUBLISHED',
+        node: { status: 'PUBLISHED', lesson: { status: 'PUBLISHED' } },
+      },
+    },
+    orderBy: [{ exercise: { nodeId: 'asc' } }, { order: 'asc' }],
+    select: { exercise: { select: { node: { select: { title: true, lesson: { select: { title: true } } } } } } },
+  })
+  if (!q) return null
+  const nodeTitle = q.exercise.node.title
+  const lessonTitle = q.exercise.node.lesson.title
+  return nodeTitle && nodeTitle !== lessonTitle ? `${lessonTitle} · ${nodeTitle}` : lessonTitle || nodeTitle
+}
+
 export async function createReviewSession(userId: string) {
   const { getDueItems } = await import('./srs')
   const due = await getDueItems(userId, 12)
@@ -143,9 +168,12 @@ export async function createReviewSession(userId: string) {
   const entries: SessionEntry[] = []
   for (let i = 0; i < due.length; i++) {
     const item = due[i]
-    const generated = await generateReviewQuestion(item.itemType, item.itemKey)
+    const [generated, sourceLabel] = await Promise.all([
+      generateReviewQuestion(item.itemType, item.itemKey),
+      resolveItemSourceLabel(item.itemType, item.itemKey).catch(() => null),
+    ])
     if (!generated) continue
-    entries.push({ qid: `rv-${i}`, sub: 0, inline: generated })
+    entries.push({ qid: `rv-${i}`, sub: 0, inline: { ...generated, sourceLabel: sourceLabel ?? 'Sổ ôn tập' } })
   }
   if (entries.length === 0) throw notFound('Chưa có nội dung ôn tập khả dụng')
   return createSessionInternal(userId, entries, 'REVIEW', null, 'Ôn tập SRS')
@@ -417,6 +445,8 @@ async function buildPayload(
   }
   // Snapshot nhiệm vụ hôm nay — chip tiến độ trực tiếp trong lesson header
   const questProgress = userId ? await getQuestProgressSnapshot(userId) : []
+  // Nhãn nguồn (mode REVIEW): mục ôn này đến từ node/bài nào
+  const questionSource = entry.inline?.sourceLabel ?? null
   return {
     session: {
       id: sessionId,
@@ -430,6 +460,7 @@ async function buildPayload(
       status: 'ACTIVE',
     },
     questProgress,
+    questionSource,
     question,
     passage,
   }
@@ -451,6 +482,8 @@ export async function getSession(userId: string, sessionId: string) {
         combo: 0,
         status: session.status,
       },
+      questProgress: [],
+      questionSource: null,
       question: null,
       passage: null,
     }
@@ -485,6 +518,8 @@ export interface AnswerFeedback {
   }
   nextQuestion: Record<string, unknown> | null
   nextPassage: Record<string, unknown> | null
+  /** Nhãn nguồn của câu tiếp theo (mode REVIEW): mục ôn đến từ node/bài nào. */
+  questionSource: string | null
 }
 
 export async function submitAnswer(userId: string, sessionId: string, answer: AnswerPayload, timeSpentMs?: number): Promise<AnswerFeedback> {
@@ -615,10 +650,12 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
   // Câu tiếp theo
   let nextQuestion: Record<string, unknown> | null = null
   let nextPassage: Record<string, unknown> | null = null
+  let nextSource: string | null = null
   if (!failed && state.index < state.entries.length) {
     const nextEntry = state.entries[state.index]
     const nextResolved = await resolveEntry(nextEntry)
     nextQuestion = sanitizeQuestion(nextResolved)
+    nextSource = nextEntry.inline?.sourceLabel ?? null
     if (!nextEntry.inline) {
       const q = await db.question.findUnique({ where: { id: nextEntry.qid } })
       if (q) {
@@ -651,6 +688,7 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
     },
     nextQuestion,
     nextPassage,
+    questionSource: nextSource,
   }
 }
 

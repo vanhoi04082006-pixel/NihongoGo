@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Check, Heart, X, Zap, Flame, Snowflake, Trophy, RefreshCw, ChevronRight, Timer, Target, Star, Rocket, LockOpen, Wrench, Sparkles, MoveRight } from 'lucide-react'
+import { BookOpen, Check, Heart, X, Zap, Flame, Snowflake, Trophy, RefreshCw, ChevronRight, Timer, Target, Star, Rocket, LockOpen, Wrench, Sparkles, MoveRight } from 'lucide-react'
 import { api, ApiClientError } from '@/lib/client/api'
 import { setSfxEnabled, sfx } from '@/lib/sounds'
 import { useHashRoute } from '@/components/app/router'
@@ -58,6 +58,8 @@ interface SessionInfo {
 interface SessionPayload {
   session: SessionInfo
   questProgress?: QuestProgressUI[]
+  /** Chỉ mode REVIEW: nhãn nguồn của mục ôn hiện tại (node/bài hoặc sổ ôn). */
+  questionSource?: string | null
   question: ClientQuestion | null
   passage: ClientQuestion | null
 }
@@ -100,6 +102,7 @@ interface AnswerResponse {
   }
   nextQuestion: ClientQuestion | null
   nextPassage: ClientQuestion | null
+  questionSource?: string | null
 }
 
 interface CompleteSummary {
@@ -176,8 +179,10 @@ export function LessonPlayer({
   const [errorMsg, setErrorMsg] = useState('')
   const [xpPops, setXpPops] = useState<{ id: number; amount: number }[]>([])
   const [heartLostAnim, setHeartLostAnim] = useState(false)
+  const [questionSource, setQuestionSource] = useState<string | null>(null)
   const questionStart = useRef<number>(Date.now())
   const xpPopId = useRef(0)
+  const nextSourceRef = useRef<string | null>(null)
 
   // Tôn trọng cài đặt âm thanh của người dùng
   useEffect(() => {
@@ -198,9 +203,11 @@ export function LessonPlayer({
     setSummary(null)
     setCombo(0)
     setQuestProgress([])
+    setQuestionSource(null)
     setErrorMsg('')
     nextQuestionRef.current = null
     nextPassageRef.current = null
+    nextSourceRef.current = null
     ;(async () => {
       try {
         const payload = await api<SessionPayload>(
@@ -222,6 +229,7 @@ export function LessonPlayer({
         setQuestion(payload.question)
         setPassage(payload.passage)
         setQuestProgress(payload.questProgress ?? [])
+        setQuestionSource(payload.questionSource ?? null)
         setPhase(payload.question ? 'question' : 'error')
         if (!payload.question) setErrorMsg('Node này chưa có nội dung.')
         questionStart.current = Date.now()
@@ -290,6 +298,7 @@ export function LessonPlayer({
       // Lưu câu tiếp theo (dùng khi bấm TIẾP TỤC)
       nextQuestionRef.current = res.nextQuestion
       nextPassageRef.current = res.nextPassage
+      nextSourceRef.current = res.questionSource ?? null
       setFeedback({
         correct: res.correct,
         expected: res.expected,
@@ -349,8 +358,10 @@ export function LessonPlayer({
     if (nextQuestionRef.current) {
       setQuestion(nextQuestionRef.current)
       setPassage(nextPassageRef.current)
+      setQuestionSource(nextSourceRef.current)
       nextQuestionRef.current = null
       nextPassageRef.current = null
+      nextSourceRef.current = null
       questionStart.current = Date.now()
       setPhase('question')
     } else {
@@ -613,10 +624,22 @@ export function LessonPlayer({
           <div className="flex-1 flex flex-col">
             {/* Instruction + combo */}
             <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight">{instruction}</h1>
                 {question.prompt && question.prompt !== instruction && (
                   <p className="text-sm sm:text-base font-medium text-muted-foreground mt-1">{question.prompt}</p>
+                )}
+                {/* Nguồn của mục ôn (REVIEW) — giúp người học nhớ ngữ cảnh đã học */}
+                {questionSource && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-muted/70 text-muted-foreground px-2.5 py-1 text-[11px] font-bold max-w-full"
+                    title={`Mục ôn này từ: ${questionSource}`}
+                  >
+                    <BookOpen className="h-3 w-3 shrink-0 text-primary" aria-hidden />
+                    <span className="truncate">{questionSource}</span>
+                  </motion.p>
                 )}
               </div>
               {combo >= 2 && phase === 'question' && (

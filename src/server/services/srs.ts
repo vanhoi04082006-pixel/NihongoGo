@@ -139,6 +139,31 @@ export interface DueStat {
   newCount: number
 }
 
+/**
+ * Dự báo khối lượng ôn tập 7 ngày tới: số mục đến hạn theo từng ngày
+ * (ranh giới ngày theo timezone user). Ngày 0 = hôm nay.
+ */
+export async function getReviewForecast(userId: string, tz: string, days = 7): Promise<{ date: string; count: number }[]> {
+  const { dateInTz, dayStartEpoch } = await import('@/lib/datetime')
+  const startEpoch = dayStartEpoch(new Date(), tz)
+  const buckets: { date: string; count: number }[] = Array.from({ length: days }, (_, i) => ({
+    date: dateInTz(new Date(startEpoch + i * 86400000), tz),
+    count: 0,
+  }))
+  const endEpoch = startEpoch + days * 86400000
+  const items = await db.sRSItem.findMany({
+    where: { userId, nextReviewAt: { not: null, lt: new Date(endEpoch) } },
+    select: { nextReviewAt: true },
+  })
+  for (const it of items) {
+    if (!it.nextReviewAt) continue
+    const t = it.nextReviewAt.getTime()
+    const idx = Math.floor((t - startEpoch) / 86400000)
+    if (idx >= 0 && idx < days) buckets[idx].count++
+  }
+  return buckets
+}
+
 export async function getDueStats(userId: string): Promise<DueStat> {
   const [dueCount, totalItems, newCount] = await Promise.all([
     db.sRSItem.count({ where: { userId, nextReviewAt: { lte: new Date() } } }),

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, BookOpen, Wrench, ArrowRight, Layers, Sparkles, CheckCircle2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { RefreshCw, BookOpen, Wrench, ArrowRight, Layers, Sparkles, CheckCircle2, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, ApiClientError } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
@@ -25,6 +26,7 @@ interface ReviewData {
     lastWrongAt: string
   }[]
   mistakeStats: { total: number; unresolved: number }
+  forecast?: { date: string; count: number }[]
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -33,6 +35,8 @@ const TYPE_LABEL: Record<string, string> = {
   GRAMMAR: 'Ngữ pháp',
   KANA: 'Kana',
 }
+
+const DOW_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 
 /** '3 ngày trước' / 'hôm qua' / 'hôm nay' — thân thiện hơn date thuần. */
 function relativeDays(iso: string): string {
@@ -162,6 +166,9 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
               </div>
             )}
           </div>
+
+          {/* Forecast — khối lượng ôn 7 ngày tới */}
+          {data.forecast && data.forecast.length > 0 && <ReviewForecast forecast={data.forecast} dueCount={dueCount} />}
         </>
       ) : (
         <>
@@ -283,5 +290,64 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
         </>
       )}
     </div>
+  )
+}
+
+/** Dự báo khối lượng ôn 7 ngày tới — cột hôm nay nổi bật, ngày trống mờ. */
+function ReviewForecast({ forecast, dueCount }: { forecast: { date: string; count: number }[]; dueCount: number }) {
+  const max = Math.max(1, ...forecast.map((d) => d.count))
+  const upcoming = forecast.reduce((s, d) => s + d.count, 0)
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border bg-card p-4 sm:p-5 mt-4"
+    >
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h3 className="font-bold text-sm flex items-center gap-2">
+          <span className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+            <CalendarClock className="h-4 w-4 text-primary" aria-hidden />
+          </span>
+          Lịch ôn tập 7 ngày tới
+        </h3>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {upcoming > 0 ? (
+            <>
+              <span className="font-bold text-primary">{upcoming} mục</span> sắp đến hạn — ôn đều để không dồn ứ
+            </>
+          ) : (
+            'Không có mục nào đến hạn trong 7 ngày tới — tuyệt vời!'
+          )}
+        </p>
+      </div>
+      <div className="flex gap-2 sm:gap-3" role="img" aria-label={`Dự báo ôn tập 7 ngày, tổng ${upcoming} mục${dueCount > 0 ? `, hôm nay ${dueCount} mục` : ''}`}>
+        {forecast.map((d, i) => {
+          const isToday = i === 0
+          const dow = new Date(d.date + 'T00:00:00').getDay()
+          const h = d.count > 0 ? Math.max(10, Math.round((d.count / max) * 100)) : 4
+          return (
+            <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+              <span className={cn('text-[10px] font-extrabold tabular-nums leading-none', d.count > 0 ? 'text-foreground/75' : 'text-muted-foreground/40')}>
+                {d.count > 0 ? d.count : ''}
+              </span>
+              <div className="w-full h-16 sm:h-20 rounded-lg bg-muted/60 flex items-end overflow-hidden">
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${h}%` }}
+                  transition={{ delay: i * 0.05, type: 'spring', stiffness: 130, damping: 20 }}
+                  className={cn(
+                    'w-full rounded-lg',
+                    isToday ? 'bg-gradient-to-t from-primary to-primary/70' : d.count > 0 ? 'bg-primary/45' : 'bg-transparent'
+                  )}
+                />
+              </div>
+              <span className={cn('text-[10px] font-bold truncate max-w-full', isToday ? 'text-primary' : 'text-muted-foreground')}>
+                {isToday ? 'Nay' : DOW_SHORT[dow]}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </motion.div>
   )
 }
