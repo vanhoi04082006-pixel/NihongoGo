@@ -58,10 +58,18 @@ export async function getDailyQuests(userId: string) {
   }))
 }
 
-export async function bumpQuestProgress(userId: string, metric: QuestMetric, amount: number): Promise<void> {
-  if (amount <= 0) return
+/** Quest vừa hoàn thành trong lần bump — để UI chúc mừng ngay lập tức. */
+export interface QuestCompletedInfo {
+  code: string
+  title: string
+  icon: string
+  rewardXP: number
+}
+
+export async function bumpQuestProgress(userId: string, metric: QuestMetric, amount: number): Promise<QuestCompletedInfo[]> {
+  if (amount <= 0) return []
   const user = await db.user.findUnique({ where: { id: userId }, include: { profile: true } })
-  if (!user) return
+  if (!user) return []
   const tz = userTimezone(user.profile?.timezone)
   const today = todayInTz(tz)
 
@@ -70,18 +78,21 @@ export async function bumpQuestProgress(userId: string, metric: QuestMetric, amo
     include: { template: true },
   })
 
+  const completed: QuestCompletedInfo[] = []
   for (const q of quests) {
     if (q.template.metric !== metric) continue
     const progress = Math.min(q.progress + amount, q.target)
-    const completed = progress >= q.target
+    const done = progress >= q.target
     await db.userDailyQuest.update({
       where: { id: q.id },
-      data: { progress, completedAt: completed ? new Date() : null },
+      data: { progress, completedAt: done ? new Date() : null },
     })
-    if (completed) {
+    if (done) {
+      completed.push({ code: q.template.code, title: q.template.title, icon: q.template.icon, rewardXP: q.rewardXP })
       await track('quest_completed', userId, { quest: q.template.code })
       const { awardXp } = await import('./xp')
       await awardXp(userId, q.rewardXP, 'QUEST_REWARD', { refType: 'quest', refId: q.id }, { bumpQuest: false })
     }
   }
+  return completed
 }

@@ -61,12 +61,20 @@ interface SessionPayload {
   passage: ClientQuestion | null
 }
 
+interface QuestCompletedUI {
+  code: string
+  title: string
+  icon: string
+  rewardXP: number
+}
+
 interface AnswerResponse {
   correct: boolean
   expected: string
   explanation: string | null
   score: number | null
   transcription: string | null
+  questsCompleted?: QuestCompletedUI[]
   session: {
     id: string
     index: number
@@ -101,10 +109,26 @@ interface CompleteSummary {
   freezesUsed: number
   totalXP: number
   levelUp: { from: number; to: number; title: string } | null
+  questsCompleted: QuestCompletedUI[]
   jumpApplied: boolean
   jumpLessonsCompleted: number
   jumpNodesCompleted: number
   jumpTargetTitle: string | null
+}
+
+/** Toast chúc mừng nhiệm vụ hằng ngày vừa hoàn thành (stagger để không tràn màn hình). */
+function toastQuestsCompleted(quests: QuestCompletedUI[], baseDelay = 250) {
+  if (quests.length === 0) return
+  sfx.combo(6)
+  quests.forEach((q, i) => {
+    window.setTimeout(() => {
+      toast.success(`Nhiệm vụ hoàn thành: ${q.title}`, {
+        description: `Phần thưởng +${q.rewardXP} XP — xem bảng Nhiệm vụ để theo dõi hàng ngày.`,
+        icon: <Target className="h-4 w-4" />,
+        duration: 6000,
+      })
+    }, baseDelay + i * 600)
+  })
 }
 
 /* ---------------------------------- Player ---------------------------------- */
@@ -275,6 +299,13 @@ export function LessonPlayer({
       setSession((s) => (s ? { ...s, ...res.session } : s))
       setPhase('feedback')
 
+      // Quest hằng ngày vừa hoàn thành nhờ câu trả lời này → chúc mừng ngay + làm mới hub
+      if (res.questsCompleted && res.questsCompleted.length > 0) {
+        toastQuestsCompleted(res.questsCompleted, 600)
+        qc.invalidateQueries({ queryKey: ['quests'] })
+        qc.invalidateQueries({ queryKey: ['overview'] })
+      }
+
       if (res.correct) {
         // hiệu ứng +XP nhỏ
         const id = ++xpPopId.current
@@ -351,6 +382,8 @@ export function LessonPlayer({
             })
           }, 1500)
         }
+        // Quest hoàn thành trong phiên (gồm cả qua bump XP) — toast sau cùng để không lấn cấn
+        toastQuestsCompleted(res.questsCompleted, 500 + res.newAchievements.length * 700 + (res.levelUp ? 1200 : 0))
         qc.invalidateQueries({ queryKey: ['overview'] })
         qc.invalidateQueries({ queryKey: ['learn'] })
         qc.invalidateQueries({ queryKey: ['quests'] })

@@ -7,7 +7,7 @@ import { getHeartConfig } from './config'
 import { getHearts, consumeHeart, grantHeart } from './hearts'
 import { recordMistake, resolveMistakeIfExists } from './mistakes'
 import { ensureSrsItem, recordAnswerSrs } from './srs'
-import { bumpQuestProgress } from './quests'
+import { bumpQuestProgress, type QuestCompletedInfo } from './quests'
 import { awardXp } from './xp'
 import { checkAchievements } from './achievements'
 import { getStreakInfo } from './streak'
@@ -458,6 +458,8 @@ export interface AnswerFeedback {
   explanation: string | null
   score: number | null
   transcription: string | null
+  /** Quest hằng ngày vừa hoàn thành nhờ câu trả lời này (UI chúc mừng ngay). */
+  questsCompleted: QuestCompletedInfo[]
   session: {
     id: string
     index: number
@@ -586,8 +588,9 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
   }
 
   // Quests + analytics
+  let questCompletions: QuestCompletedInfo[] = []
   if (result.isCorrect) {
-    await bumpQuestProgress(userId, 'CORRECT_ANSWERS', 1)
+    questCompletions = await bumpQuestProgress(userId, 'CORRECT_ANSWERS', 1)
   }
   await track(result.isCorrect ? 'question_answered' : 'question_wrong', userId, {
     sessionId: session.id,
@@ -619,6 +622,7 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
     explanation: resolved.explanation ?? null,
     score: result.score ?? null,
     transcription: enrichedAnswer.transcription ?? null,
+    questsCompleted: questCompletions,
     session: {
       id: session.id,
       index: state.index,
@@ -664,6 +668,8 @@ export interface CompleteSummary {
   totalXP: number
   /** Lên cấp trong phiên này (null nếu không) — đã tính cả XP thành tựu. */
   levelUp: { from: number; to: number; title: string } | null
+  /** Quest hằng ngày vừa hoàn thành trong phiên (gồm cả qua bump XP) — UI chúc mừng. */
+  questsCompleted: QuestCompletedInfo[]
 }
 
 export async function completeSession(userId: string, sessionId: string): Promise<CompleteSummary> {
@@ -706,6 +712,7 @@ export async function completeSession(userId: string, sessionId: string): Promis
   let jumpLessonsCompleted = 0
   let jumpNodesCompleted = 0
   let jumpTargetTitle: string | null = null
+  const questCompletions: QuestCompletedInfo[] = []
   if (mode === 'LESSON' && session.node) {
     const node = session.node
     passed = accuracy >= node.requiredScore
@@ -762,9 +769,11 @@ export async function completeSession(userId: string, sessionId: string): Promis
       })
 
       // Quests
-      await bumpQuestProgress(userId, 'LESSONS_COMPLETED', 1)
-      if (node.nodeType === 'LISTENING') await bumpQuestProgress(userId, 'LISTENING_NODES', 1)
-      if (perfect) await bumpQuestProgress(userId, 'PERFECT_LESSONS', 1)
+      questCompletions.push(
+        ...(await bumpQuestProgress(userId, 'LESSONS_COMPLETED', 1)),
+        ...(node.nodeType === 'LISTENING' ? await bumpQuestProgress(userId, 'LISTENING_NODES', 1) : []),
+        ...(perfect ? await bumpQuestProgress(userId, 'PERFECT_LESSONS', 1) : []),
+      )
 
       // Lesson hoàn tất?
       const playableNodes = await db.lessonNode.count({
@@ -835,8 +844,10 @@ export async function completeSession(userId: string, sessionId: string): Promis
   // Review: bump quest REVIEWS_DONE + VOCAB_REVIEWS
   if (mode === 'REVIEW') {
     const vocabCount = state.entries.filter((e) => e.inline?.itemRefType === 'VOCAB').length
-    await bumpQuestProgress(userId, 'REVIEWS_DONE', state.entries.length)
-    if (vocabCount > 0) await bumpQuestProgress(userId, 'VOCAB_REVIEWS', vocabCount)
+    questCompletions.push(
+      ...(await bumpQuestProgress(userId, 'REVIEWS_DONE', state.entries.length)),
+      ...(vocabCount > 0 ? await bumpQuestProgress(userId, 'VOCAB_REVIEWS', vocabCount) : []),
+    )
   }
 
   // Mốc level trước khi cộng XP của phiên này — để phát hiện lên cấp ở cuối request
@@ -866,6 +877,7 @@ export async function completeSession(userId: string, sessionId: string): Promis
     )
     totalXP = res.totalXP
     freezesUsed = res.freezesUsed
+    questCompletions.push(...res.questsCompleted)
   }
 
   // Practice/ôn/sửa lỗi/thử thách → +1 tim
@@ -933,6 +945,7 @@ export async function completeSession(userId: string, sessionId: string): Promis
     streak,
     totalXP,
     levelUp,
+    questsCompleted: questCompletions,
   }
 }
 

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { badRequest } from '@/lib/api'
+import type { QuestCompletedInfo } from './quests'
 
 export interface XpAwardResult {
   amount: number
@@ -9,6 +10,8 @@ export interface XpAwardResult {
   freezesUsed: number
   /** 1 nếu vừa được tặng freeze ở mốc 7 ngày. */
   freezeGranted: number
+  /** Quest hằng ngày vừa hoàn thành nhờ lần cộng XP này (để UI chúc mừng). */
+  questsCompleted: QuestCompletedInfo[]
 }
 
 /**
@@ -22,7 +25,7 @@ export async function awardXp(
   ref?: { refType?: string; refId?: string },
   opts: { bumpQuest?: boolean } = {}
 ): Promise<XpAwardResult> {
-  if (!Number.isFinite(amount) || amount <= 0) return { amount: 0, totalXP: 0, streakExtended: false, freezesUsed: 0, freezeGranted: 0 }
+  if (!Number.isFinite(amount) || amount <= 0) return { amount: 0, totalXP: 0, streakExtended: false, freezesUsed: 0, freezeGranted: 0, questsCompleted: [] }
   if (amount > 500) throw badRequest('Số XP không hợp lệ')
 
   await db.xPTransaction.create({
@@ -44,9 +47,10 @@ export async function awardXp(
   let streakExtended = false
   let freezesUsed = 0
   let freezeGranted = 0
+  let questsCompleted: QuestCompletedInfo[] = []
   if (opts.bumpQuest !== false) {
     const { bumpQuestProgress } = await import('./quests')
-    await bumpQuestProgress(userId, 'XP_EARNED', amount)
+    questsCompleted = await bumpQuestProgress(userId, 'XP_EARNED', amount)
   }
   const { touchStreak } = await import('./streak')
   const streakRes = await touchStreak(userId, amount)
@@ -54,5 +58,5 @@ export async function awardXp(
   freezesUsed = streakRes.freezesUsed
   freezeGranted = streakRes.freezeGranted
 
-  return { amount, totalXP: progress.totalXP, streakExtended, freezesUsed, freezeGranted }
+  return { amount, totalXP: progress.totalXP, streakExtended, freezesUsed, freezeGranted, questsCompleted }
 }
