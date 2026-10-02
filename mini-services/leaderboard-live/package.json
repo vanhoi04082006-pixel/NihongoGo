@@ -1,6 +1,7 @@
 {
   "name": "leaderboard-live",
   "private": true,
+  "port": 3004,
   "scripts": {
     "dev": "bun --hot index.ts"
   },

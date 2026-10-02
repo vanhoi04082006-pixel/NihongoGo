@@ -67,8 +67,8 @@ function Router() {
     return <LessonPlayerView nodeId={segments[1]} mode={segments[2] === 'practice' ? 'PRACTICE' : 'LESSON'} preview={segments[2] === 'preview'} />
   }
 
-  // Review/mistake session player
-  if (head === 'session' && (segments[1] === 'review' || segments[1] === 'mistakes')) {
+  // Review/mistake/challenge session player
+  if (head === 'session' && (segments[1] === 'review' || segments[1] === 'mistakes' || segments[1] === 'challenge')) {
     return <LessonPlayerView source={segments[1]} mode="PRACTICE" />
   }
 

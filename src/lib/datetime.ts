@@ -71,6 +71,30 @@ export function mondayEpoch(date: Date, tz: string): number {
   return Date.UTC(y, m - 1, d) - 7 * 3600000
 }
 
+/**
+ * Epoch của 00:00 ngày `date` theo timezone (dùng để ranh giới "hôm nay" cho
+ * daily challenge / quest). Chính xác với tz không DST (bao gồm VN).
+ */
+export function dayStartEpoch(date: Date, tz: string): number {
+  const day = dateInTz(date, tz) // 'YYYY-MM-DD' địa phương
+  const [y, m, d] = day.split('-').map(Number)
+  const offsetMin = getTzOffsetMinutes(tz, date)
+  return Date.UTC(y, m - 1, d) - offsetMin * 60000
+}
+
+/** Offset (phút) của timezone tại thời điểm `date` — ví dụ VN = -420 (UTC+7). */
+function getTzOffsetMinutes(tz: string, date: Date): number {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    timeZoneName: 'longOffset',
+  })
+  const part = fmt.formatToParts(date).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+  const m = part.match(/GMT([+-])(\d{2}):(\d{2})/)
+  if (!m) return 0
+  const sign = m[1] === '-' ? -1 : 1
+  return sign * (Number(m[2]) * 60 + Number(m[3]))
+}
+
 /** Key mùa giải leaderboard: 'YYYY-MM-DD' của thứ Hai. */
 export function seasonKeyNow(tz = DEFAULT_TZ): string {
   return mondayOf(new Date(), tz)

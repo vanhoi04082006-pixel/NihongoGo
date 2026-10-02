@@ -17,8 +17,9 @@
  *   đường dẫn `file:` được giải nghĩa TƯƠNG ĐỐI so với thư mục prisma/
  *   (vì datasource nằm ở prisma/schema.prisma).
  */
-import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { existsSync, openSync, readdirSync, readFileSync } from 'node:fs'
+import net from 'node:net'
 import { join, resolve } from 'node:path'
 import { Database } from 'bun:sqlite'
 import { SEED_VERSION, SEED_VERSION_KEY } from '../prisma/seed-version'
@@ -126,10 +127,64 @@ const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`
 const green = (s: string) => `\x1b[32m${s}\x1b[0m`
 const red = (s: string) => `\x1b[31m${s}\x1b[0m`
 
+/**
+ * Đảm bảo các mini-service (socket.io live…) đang chạy trước khi next dev mở.
+ * Nếu cổng đã lắng nghe → coi như đang chạy, bỏ qua. Ngược lại spawn nền
+ * `bun run dev` trong thư mục mini-services/<name>, log ghi ra service.log.
+ * Lỗi khởi động KHÔNG chặn dev server (tính năng live chỉ là phụ).
+ */
+async function ensureMiniServices(): Promise<void> {
+  const dir = join(root, 'mini-services')
+  let entries: string[] = []
+  try {
+    entries = readdirSync(dir).filter((n) => existsSync(join(dir, n, 'package.json')))
+  } catch {
+    return // không có thư mục mini-services
+  }
+  for (const name of entries) {
+    const cwd = join(dir, name)
+    let port = 0
+    try {
+      const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')) as { port?: number }
+      port = Number(pkg.port ?? 0)
+    } catch {
+      /* bỏ qua nếu đọc package.json lỗi */
+    }
+    if (!port) continue // không khai báo port → không tự động hoá
+    const inUse = await new Promise<boolean>((resolvePort) => {
+      const sock = net.connect({ host: '127.0.0.1', port })
+      const done = (ok: boolean) => {
+        sock.destroy()
+        resolvePort(ok)
+      }
+      sock.once('connect', () => done(true))
+      sock.once('error', () => done(false))
+      setTimeout(() => done(false), 400)
+    })
+    if (inUse) {
+      console.log(dim(`✓ mini-service ${name} đang chạy (port ${port})`))
+      continue
+    }
+    if (!existsSync(join(cwd, 'node_modules'))) {
+      spawnSync('bun install', { stdio: 'ignore', shell: true, cwd })
+    }
+    const out = openSync(join(cwd, 'service.log'), 'a')
+    const child = spawn('bun run dev', {
+      stdio: ['ignore', out, out],
+      shell: true,
+      cwd,
+      detached: true,
+    })
+    child.unref()
+    console.log(cyan(`→ đã khởi động mini-service ${name} nền (port ${port}, log: service.log)`))
+  }
+}
+
 const status = checkDb()
 
 if (status.ready) {
   console.log(`${dim('✓ Database sẵn sàng')} ${dim(`(${status.file})`)}`)
+  await ensureMiniServices()
   process.exit(0)
 }
 

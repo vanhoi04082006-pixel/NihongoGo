@@ -8,7 +8,7 @@ export interface XpInput {
   maxCombo: number
   perfect: boolean // 0 câu sai
   firstCompletion: boolean
-  sessionType: 'LESSON' | 'PRACTICE' | 'MISTAKE' | 'REVIEW' | 'JUMP'
+  sessionType: 'LESSON' | 'PRACTICE' | 'MISTAKE' | 'REVIEW' | 'JUMP' | 'CHALLENGE'
 }
 
 export interface XpBreakdownItem {
@@ -26,7 +26,7 @@ const REVIEW_PER_CORRECT = 5
 
 export function computeLessonXp(input: XpInput): XpResult {
   const breakdown: XpBreakdownItem[] = []
-  const isPracticeLike = input.sessionType !== 'LESSON'
+  const isPracticeLike = input.sessionType !== 'LESSON' && input.sessionType !== 'CHALLENGE'
   const perCorrect = input.sessionType === 'REVIEW' ? REVIEW_PER_CORRECT : BASE_PER_CORRECT
 
   const base = input.correctCount * perCorrect
@@ -41,6 +41,9 @@ export function computeLessonXp(input: XpInput): XpResult {
     }
     if (input.firstCompletion) {
       breakdown.push({ label: 'Hoàn thành lần đầu', amount: 15 })
+    }
+    if (input.sessionType === 'CHALLENGE' && input.totalQuestions >= 5) {
+      breakdown.push({ label: 'Thưởng thử thách hàng ngày', amount: 15 })
     }
   }
 

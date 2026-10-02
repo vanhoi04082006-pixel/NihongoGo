@@ -23,6 +23,7 @@ interface ProgressDTO {
     speakingNodes: number
     studyTimeSeconds: number
     league: string
+    challengesCompleted: number
   }
   streak: { currentStreak: number; longestStreak: number; todayXP: number; dailyGoalXP: number; goalMetToday: boolean; freezeCount: number; freezeMax: number }
   streak30: { date: string; met: boolean; xp: number }[]
@@ -76,7 +77,11 @@ export function ProfileView() {
 
   const displayName = overview?.user.displayName ?? user?.username ?? 'Học viên'
   const srsByType = Object.entries(data.srs).filter(([k]) => ['VOCAB', 'KANJI', 'GRAMMAR', 'KANA'].includes(k)) as [string, { total: number; mastered: number; due: number }][]
-  const maxDaily = Math.max(10, ...data.xpStats.daily.map((d) => d.xp))
+  const daily = data.xpStats.daily
+  const maxDaily = Math.max(10, ...daily.map((d) => d.xp))
+  const activeDays = daily.filter((d) => d.xp > 0)
+  const avgActive = activeDays.length > 0 ? Math.round(activeDays.reduce((s, d) => s + d.xp, 0) / activeDays.length) : 0
+  const goal = data.streak.dailyGoalXP
   const hours = Math.floor(data.progress.studyTimeSeconds / 3600)
   const minutes = Math.round((data.progress.studyTimeSeconds % 3600) / 60)
 
@@ -138,6 +143,7 @@ export function ProfileView() {
         <StatBig icon={<Star className="h-5 w-5" />} label="Buổi hoàn hảo" value={String(data.progress.perfectLessons)} />
         <StatBig icon={<Mic className="h-5 w-5" />} label="Ải luyện nói" value={String(data.progress.speakingNodes)} />
         <StatBig icon={<RefreshCw className="h-5 w-5" />} label="Mục SRS" value={String(data.srs.totalItems)} />
+        <StatBig icon={<Zap className="h-5 w-5" />} label="Thử thách ngày" value={String(data.progress.challengesCompleted ?? 0)} />
       </div>
 
       {/* Streak freeze info */}
@@ -156,24 +162,51 @@ export function ProfileView() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
-        {/* XP chart 30 days */}
+        {/* XP chart 30 ngày — có đường mục tiêu, vạch TB ngày học, đánh dấu hôm nay */}
         <div className="rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h3 className="font-bold text-sm">XP 30 ngày qua</h3>
-            <div className="flex gap-2 text-xs">
+            <div className="flex gap-2 text-xs flex-wrap">
               <span className="font-bold text-primary">7 ngày: {data.xpStats.last7} XP</span>
               <span className="text-muted-foreground">30 ngày: {data.xpStats.last30} XP</span>
             </div>
           </div>
-          <div className="flex items-end gap-[3px] h-28" role="img" aria-label="Biểu đồ XP 30 ngày">
-            {data.xpStats.daily.map((d) => (
-              <div
-                key={d.date}
-                className={cn('flex-1 rounded-t-sm min-w-0 transition-all', d.xp > 0 ? 'bg-primary/70 hover:bg-primary' : 'bg-muted')}
-                style={{ height: `${Math.max(4, (d.xp / maxDaily) * 100)}%` }}
-                title={`${d.date}: ${d.xp} XP`}
-              />
-            ))}
+          <div className="relative h-28" role="img" aria-label={`Biểu đồ XP 30 ngày, trung bình ${avgActive} XP mỗi ngày học`}>
+            {/* Đường mục tiêu hằng ngày */}
+            <div
+              className="absolute inset-x-0 border-t-2 border-dashed border-warning/50 pointer-events-none"
+              style={{ bottom: `${Math.min(100, (goal / maxDaily) * 100)}%` }}
+              aria-hidden
+            >
+              <span className="absolute -top-4 right-0 text-[9px] font-bold text-warning/80 bg-card px-1 rounded">mục tiêu {goal}</span>
+            </div>
+            <div className="flex items-end gap-[3px] h-full">
+              {daily.map((d, i) => {
+                const isToday = i === daily.length - 1
+                const wd = new Date(d.date + 'T00:00:00').getDay()
+                const weekend = wd === 0 || wd === 6
+                return (
+                  <div
+                    key={d.date}
+                    className={cn(
+                      'flex-1 rounded-t-sm min-w-0 transition-all relative',
+                      d.xp > 0 ? (isToday ? 'bg-warning' : weekend ? 'bg-sakura/80 hover:bg-sakura' : 'bg-primary/70 hover:bg-primary') : 'bg-muted'
+                    )}
+                    style={{ height: `${Math.max(4, (d.xp / maxDaily) * 100)}%` }}
+                    title={`${d.date}: ${d.xp} XP${d.xp >= goal ? ' — đạt mục tiêu' : ''}`}
+                  >
+                    {isToday && (
+                      <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-extrabold text-warning whitespace-nowrap">hôm nay</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-semibold">
+            <span>30 ngày trước</span>
+            <span> TB {avgActive} XP/ngày học · {activeDays.length} ngày học</span>
+            <span>hôm nay</span>
           </div>
         </div>
 

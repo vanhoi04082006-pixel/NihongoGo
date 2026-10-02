@@ -503,7 +503,7 @@ function CreateNodeDialog({ lessonId, maxOrder }: { lessonId: string; maxOrder: 
         <Plus className="h-4 w-4" /> Thêm node
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto nice-scroll">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto nice-scroll" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Tạo node mới</DialogTitle>
           </DialogHeader>
@@ -660,7 +660,7 @@ function CreateExerciseDialog({ nodeId, maxOrder }: { nodeId: string; maxOrder: 
         <Plus className="h-4 w-4" /> Thêm exercise
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Tạo exercise mới</DialogTitle>
           </DialogHeader>
@@ -741,7 +741,7 @@ function QuestionBuilderDialog({ exerciseId, exerciseType, order }: { exerciseId
         <Plus className="h-4 w-4" /> Thêm câu hỏi
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto nice-scroll">
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto nice-scroll" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Soạn câu hỏi mới</DialogTitle>
           </DialogHeader>
@@ -1217,7 +1217,7 @@ function EntityFormDialog({ entity, fields, initial, onClose }: { entity: string
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto nice-scroll">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto nice-scroll" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{isEdit ? `Chỉnh sửa: ${initial.term ?? initial.character ?? initial.title ?? initial.code ?? ''}` : `Tạo ${entity} mới`}</DialogTitle>
         </DialogHeader>

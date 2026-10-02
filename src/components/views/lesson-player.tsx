@@ -10,7 +10,7 @@ export function LessonPlayerView({
 }: {
   nodeId?: string
   mode?: 'LESSON' | 'PRACTICE'
-  source?: 'node' | 'review' | 'mistakes' | 'jump'
+  source?: 'node' | 'review' | 'mistakes' | 'jump' | 'challenge'
   preview?: boolean
 }) {
   return <LessonPlayer nodeId={nodeId} mode={mode ?? 'LESSON'} source={source} />

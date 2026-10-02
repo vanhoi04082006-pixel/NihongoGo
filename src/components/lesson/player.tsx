@@ -118,7 +118,7 @@ export function LessonPlayer({
 }: {
   nodeId?: string
   mode: 'LESSON' | 'PRACTICE'
-  source?: 'node' | 'review' | 'mistakes' | 'jump'
+  source?: 'node' | 'review' | 'mistakes' | 'jump' | 'challenge'
   sessionTitle?: string
 }) {
   const { navigate } = useHashRoute()
@@ -164,15 +164,20 @@ export function LessonPlayer({
     nextPassageRef.current = null
     ;(async () => {
       try {
-        const payload = await api<SessionPayload>('/api/lesson-sessions', {
-          method: 'POST',
-          json:
-            source === 'node'
-              ? { nodeId, mode, source: 'node' }
-              : source === 'jump'
-                ? { source: 'jump', targetLessonId: nodeId }
-                : { source },
-        })
+        const payload = await api<SessionPayload>(
+          source === 'challenge' ? '/api/challenge/start' : '/api/lesson-sessions',
+          {
+            method: 'POST',
+            json:
+              source === 'node'
+                ? { nodeId, mode, source: 'node' }
+                : source === 'jump'
+                  ? { source: 'jump', targetLessonId: nodeId }
+                  : source === 'challenge'
+                    ? undefined
+                    : { source },
+          }
+        )
         if (cancelled) return
         setSession(payload.session)
         setQuestion(payload.question)
@@ -476,6 +481,10 @@ export function LessonPlayer({
             <span className="text-xs font-extrabold rounded-full bg-sakura/15 text-sakura px-3 py-1.5 inline-flex items-center gap-1.5">
               <Rocket className="h-3.5 w-3.5" aria-hidden /> Kiểm tra bỏ qua
             </span>
+          ) : session?.mode === 'CHALLENGE' ? (
+            <span className="text-xs font-extrabold rounded-full bg-warning/15 text-warning px-3 py-1.5 inline-flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5" aria-hidden /> Thử thách
+            </span>
           ) : (
             <span className="text-xs font-extrabold rounded-full bg-success/10 text-success px-3 py-1.5">Luyện tập</span>
           )}
@@ -637,15 +646,19 @@ export function LessonPlayer({
             mode={session.mode}
             onContinue={continueFromCompletion}
             onReviewMistakes={summary.wrongCount > 0 ? () => navigate('/session/mistakes') : undefined}
-            onReplay={() => {
-              setPhase('loading')
-              setSummary(null)
-              setDraftState({})
-              setFeedback(null)
-              // restart (jump: nodeId chính là targetLessonId)
-              window.location.hash = source === 'jump' ? `#/jump/${nodeId}` : `#/lesson/${nodeId}`
-              window.location.reload()
-            }}
+            onReplay={
+              source === 'challenge'
+                ? undefined // thử thách 1 lần/ngày — không cho học lại
+                : () => {
+                    setPhase('loading')
+                    setSummary(null)
+                    setDraftState({})
+                    setFeedback(null)
+                    // restart (jump: nodeId chính là targetLessonId)
+                    window.location.hash = source === 'jump' ? `#/jump/${nodeId}` : `#/lesson/${nodeId}`
+                    window.location.reload()
+                  }
+            }
           />
         )}
       </main>
@@ -717,11 +730,12 @@ function CompletionScreen({
   summary: CompleteSummary
   mode: string
   onContinue: () => void
-  onReplay: () => void
+  onReplay?: () => void
   onReviewMistakes?: () => void
 }) {
   const minutes = Math.max(1, Math.round(summary.durationMs / 60000))
   const isJump = mode === 'JUMP'
+  const isChallenge = mode === 'CHALLENGE'
   return (
     <div className="relative flex-1 flex flex-col items-center py-6 gap-7 overflow-hidden">
       {summary.passed && <Confetti count={42} />}
@@ -742,18 +756,28 @@ function CompletionScreen({
           />
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-4">
-          {isJump ? (summary.passed ? 'Đã mở khóa!' : 'Chưa đủ để bỏ qua') : summary.passed ? 'Hoàn thành ải!' : 'Chưa đạt — cố lên!'}
+          {isChallenge
+            ? 'Thử thách hoàn thành!'
+            : isJump
+              ? summary.passed
+                ? 'Đã mở khóa!'
+                : 'Chưa đủ để bỏ qua'
+              : summary.passed
+                ? 'Hoàn thành ải!'
+                : 'Chưa đạt — cố lên!'}
         </h1>
         <p className="text-muted-foreground mt-1">
-          {isJump
-            ? summary.passed
-              ? `Độ chính xác ${summary.accuracy}% — bạn đủ trình độ để học thẳng bài "${summary.jumpTargetTitle ?? 'mục tiêu'}"!`
-              : `Độ chính xác ${summary.accuracy}% — cần ≥80% để bỏ qua. Học thêm rồi quay lại nhé!`
-            : summary.passed
-              ? summary.perfect
-                ? 'Tuyệt đối hoàn hảo — không sai một câu nào!'
-                : `Độ chính xác ${summary.accuracy}%`
-              : `Độ chính xác ${summary.accuracy}% — cần thêm chút nữa để qua ải này`}
+          {isChallenge
+            ? `Độ chính xác ${summary.accuracy}% — thử thách mỗi ngày để giữ nhịp học!`
+            : isJump
+              ? summary.passed
+                ? `Độ chính xác ${summary.accuracy}% — bạn đủ trình độ để học thẳng bài "${summary.jumpTargetTitle ?? 'mục tiêu'}"!`
+                : `Độ chính xác ${summary.accuracy}% — cần ≥80% để bỏ qua. Học thêm rồi quay lại nhé!`
+              : summary.passed
+                ? summary.perfect
+                  ? 'Tuyệt đối hoàn hảo — không sai một câu nào!'
+                  : `Độ chính xác ${summary.accuracy}%`
+                : `Độ chính xác ${summary.accuracy}% — cần thêm chút nữa để qua ải này`}
         </p>
       </motion.div>
 
@@ -882,9 +906,11 @@ function CompletionScreen({
             <Wrench className="h-4 w-4" /> Xem lại {summary.wrongCount} lỗi sai
           </Button>
         )}
-        <Button variant="outline" onClick={onReplay} size="xl">
-          <Star className="h-4 w-4" /> {isJump ? 'Thử lại' : 'Học lại'}
-        </Button>
+        {onReplay && (
+          <Button variant="outline" onClick={onReplay} size="xl">
+            <Star className="h-4 w-4" /> {isJump ? 'Thử lại' : 'Học lại'}
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -23,7 +23,7 @@ interface SrsItemRef {
  * Client chỉ gửi answer; mọi tính toán (chấm điểm, tim, XP, unlock) nằm ở đây.
  */
 
-export type SessionMode = 'LESSON' | 'PRACTICE' | 'MISTAKE' | 'REVIEW' | 'JUMP'
+export type SessionMode = 'LESSON' | 'PRACTICE' | 'MISTAKE' | 'REVIEW' | 'JUMP' | 'CHALLENGE'
 
 /** Ngưỡng đạt để bỏ qua (%), số câu tối đa trong bài kiểm tra bỏ qua. */
 const JUMP_REQUIRED_SCORE = 80
@@ -149,6 +149,22 @@ export async function createReviewSession(userId: string) {
   }
   if (entries.length === 0) throw notFound('Chưa có nội dung ôn tập khả dụng')
   return createSessionInternal(userId, entries, 'REVIEW', null, 'Ôn tập SRS')
+}
+
+/**
+ * Daily Challenge — 10 câu/ngày, không tốn tim, thưởng XP bonus.
+ * Đã hoàn thành hôm nay → conflict (1 lần/ngày theo timezone user).
+ */
+export async function createChallengeSession(userId: string) {
+  const { getChallengeInfo, buildChallengeQuestionIds } = await import('./dailyChallenge')
+  const info = await getChallengeInfo(userId)
+  if (info.completed) {
+    throw conflict('Hôm nay bạn đã hoàn thành thử thách rồi — quay lại vào ngày mai nhé!')
+  }
+  const ids = await buildChallengeQuestionIds(userId)
+  if (ids.length < 3) throw notFound('Chưa đủ nội dung để tạo thử thách hàng ngày')
+  const entries: SessionEntry[] = ids.map((qid) => ({ qid, sub: 0 }) as SessionEntry)
+  return createSessionInternal(userId, entries, 'CHALLENGE', null, 'Thử thách hàng ngày')
 }
 
 /* ------------------------- Jump (kiểm tra bỏ qua) -------------------------- */
@@ -833,17 +849,22 @@ export async function completeSession(userId: string, sessionId: string): Promis
   let totalXP = 0
   let freezesUsed = 0
   if (xpResult.total > 0) {
-    const res = await awardXp(userId, xpResult.total, mode === 'LESSON' ? 'LESSON_COMPLETE' : mode === 'REVIEW' ? 'REVIEW' : 'PRACTICE', {
-      refType: 'session',
-      refId: session.id,
-    })
+    const res = await awardXp(
+      userId,
+      xpResult.total,
+      mode === 'LESSON' ? 'LESSON_COMPLETE' : mode === 'REVIEW' ? 'REVIEW' : mode === 'CHALLENGE' ? 'CHALLENGE' : 'PRACTICE',
+      {
+        refType: 'session',
+        refId: session.id,
+      }
+    )
     totalXP = res.totalXP
     freezesUsed = res.freezesUsed
   }
 
-  // Practice → +1 tim
+  // Practice/ôn/sửa lỗi/thử thách → +1 tim
   let heartsGranted = 0
-  if (mode === 'PRACTICE' || mode === 'REVIEW' || mode === 'MISTAKE' || mode === 'JUMP') {
+  if (mode === 'PRACTICE' || mode === 'REVIEW' || mode === 'MISTAKE' || mode === 'JUMP' || mode === 'CHALLENGE') {
     const config = await getHeartConfig()
     if (config.enabled) {
       const before = await getHearts(userId)

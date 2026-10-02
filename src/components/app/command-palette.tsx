@@ -168,6 +168,7 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
       <DialogContent
         className="overflow-hidden p-0 top-[18%] translate-y-0 max-w-xl rounded-2xl shadow-2xl shadow-primary/10"
         showCloseButton={false}
+        aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">Tìm kiếm toàn cục</DialogTitle>
         <Command shouldFilter={false} loop className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground/80">

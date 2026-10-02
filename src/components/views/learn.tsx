@@ -1646,7 +1646,8 @@ function TodayHub({
             <ProgressRing value={goalRatio} className="stroke-warning" size={88}>
               <Flame className={cn('h-4 w-4', overview?.streak.goalMetToday ? 'text-warning fill-warning/30' : 'text-muted-foreground')} aria-hidden />
               <span className="text-sm font-extrabold tabular-nums leading-none mt-0.5">
-                {todayXP}<span className="text-muted-foreground font-bold">/{goal}</span>
+                {overview?.streak.goalMetToday ? '✓' : todayXP}<span className={cn('text-muted-foreground font-bold', overview?.streak.goalMetToday && 'hidden')}>/{goal}</span>
+                <span className={cn('sr-only')}>{todayXP} trên {goal} XP</span>
               </span>
             </ProgressRing>
             <div className="lg:hidden min-w-0">
@@ -1678,6 +1679,9 @@ function TodayHub({
         </div>
       </div>
 
+      {/* Daily Challenge — thử thách 10 câu mỗi ngày, không tốn tim */}
+      <DailyChallengeCard />
+
       {/* Mini-stats nội dung (mobile — desktop xem ở sidebar) */}
       <div className="relative mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
         {contentStats.map((s) => (
@@ -1695,6 +1699,107 @@ function TodayHub({
         ))}
       </div>
     </motion.section>
+  )
+}
+
+/* ---------------------------- Daily Challenge card --------------------------- */
+
+interface ChallengeInfoDTO {
+  date: string
+  total: number
+  completed: boolean
+  inProgress: boolean
+  xpEarned: number
+  accuracy: number
+  correctCount: number
+}
+
+/**
+ * Thẻ Daily Challenge trong hub: 10 câu/ngày, không tốn tim, +15 XP thưởng.
+ * Đã xong → hiện kết quả; lỗi tải → ẩn quietly (tính năng phụ, không chặn hub).
+ */
+function DailyChallengeCard() {
+  const { navigate } = useHashRoute()
+  const [starting, setStarting] = useState(false)
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['challenge'],
+    queryFn: () => api<ChallengeInfoDTO>('/api/challenge'),
+    staleTime: 60_000,
+  })
+
+  const start = async () => {
+    setStarting(true)
+    try {
+      await api('/api/challenge/start', { method: 'POST' })
+      navigate('/session/challenge')
+    } catch {
+      toast.error('Chưa bắt đầu được thử thách — thử lại sau nhé!')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="relative mb-3 rounded-2xl border border-border/60 bg-card/60 p-3.5 flex items-center gap-3" aria-hidden>
+        <div className="shimmer h-10 w-10 rounded-xl" />
+        <div className="flex-1 space-y-1.5">
+          <div className="shimmer h-3.5 w-40 rounded-full" />
+          <div className="shimmer h-3 w-56 rounded-full" />
+        </div>
+        <div className="shimmer h-9 w-24 rounded-xl" />
+      </div>
+    )
+  }
+  if (isError || !data) return null
+
+  const done = data.completed
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15, duration: 0.3 }}
+      className={cn(
+        'relative mb-3 rounded-2xl border-2 p-3.5 flex items-center gap-3 overflow-hidden',
+        done ? 'border-success/40 bg-success/[0.06]' : 'border-warning/40 bg-gradient-to-r from-warning/[0.10] via-card to-sakura/[0.08]'
+      )}
+      aria-label={done ? 'Thử thách hàng ngày đã hoàn thành' : 'Thử thách hàng ngày — chưa hoàn thành'}
+    >
+      <span
+        className={cn(
+          'h-10 w-10 shrink-0 rounded-xl flex items-center justify-center',
+          done ? 'bg-success/15' : 'bg-warning/15'
+        )}
+        aria-hidden
+      >
+        {done ? <Check className="h-5 w-5 text-success" /> : <Zap className="h-5 w-5 text-warning" />}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="font-extrabold text-sm leading-tight flex items-center gap-1.5 flex-wrap">
+          Thử thách hàng ngày
+          {done ? (
+            <span className="text-[10px] font-bold rounded-full bg-success text-white px-2 py-0.5 uppercase tracking-wide">Xong</span>
+          ) : (
+            <span className="text-[10px] font-bold rounded-full bg-warning text-white px-2 py-0.5 uppercase tracking-wide">+15 XP</span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+          {done
+            ? `Chính xác ${data.accuracy}% (${data.correctCount}/${data.total}) · +${data.xpEarned} XP — hẹn mai thử thách mới!`
+            : `${data.total} câu ôn kiến thức đã học · không tốn tim · chỉ 1 lần/ngày`}
+        </p>
+      </div>
+      {!done && (
+        <button
+          onClick={start}
+          disabled={starting}
+          className="btn-3d btn-3d-warning shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-warning text-white px-4 h-9 text-sm font-extrabold outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+        >
+          {starting ? 'Đang mở…' : data.inProgress ? 'Tiếp tục' : 'Bắt đầu'}
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </button>
+      )}
+    </motion.div>
   )
 }
 

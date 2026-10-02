@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { todayInTz, userTimezone } from '@/lib/datetime'
 import { track } from './analytics'
+import { hashStr } from './quest-utils'
 import type { QuestMetric } from '@/types/gamification'
 
 /**
@@ -83,13 +84,4 @@ export async function bumpQuestProgress(userId: string, metric: QuestMetric, amo
       await awardXp(userId, q.rewardXP, 'QUEST_REWARD', { refType: 'quest', refId: q.id }, { bumpQuest: false })
     }
   }
-}
-
-function hashStr(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
 }

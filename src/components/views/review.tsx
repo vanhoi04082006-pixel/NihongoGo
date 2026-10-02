@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, BookOpen, Wrench, ArrowRight, Layers, Sparkles } from 'lucide-react'
+import { RefreshCw, BookOpen, Wrench, ArrowRight, Layers, Sparkles, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, ApiClientError } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
@@ -34,9 +34,20 @@ const TYPE_LABEL: Record<string, string> = {
   KANA: 'Kana',
 }
 
+/** '3 ngày trước' / 'hôm qua' / 'hôm nay' — thân thiện hơn date thuần. */
+function relativeDays(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (days <= 0) return 'hôm nay'
+  if (days === 1) return 'hôm qua'
+  if (days < 7) return `${days} ngày trước`
+  if (days < 30) return `${Math.floor(days / 7)} tuần trước`
+  return new Date(iso).toLocaleDateString('vi-VN')
+}
+
 export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
   const { navigate } = useHashRoute()
   const [tab, setTab] = useState<'srs' | 'mistakes'>(initialTab)
+  const [mistakeFilter, setMistakeFilter] = useState<'unresolved' | 'resolved' | 'all'>('unresolved')
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['review'],
     queryFn: () => api<ReviewData>('/api/review'),
@@ -60,11 +71,21 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
     }
   }
 
+  // Lọc lỗi sai (trước early-return để hợp rules-of-hooks)
+  const filteredMistakes = useMemo(() => {
+    const list = data?.mistakes ?? []
+    if (mistakeFilter === 'all') return list
+    const want = mistakeFilter === 'unresolved' ? false : true
+    return list.filter((m) => m.resolved === want)
+  }, [data, mistakeFilter])
+
   if (isLoading) return <LoadingBlock label="Đang tải ôn tập…" />
   if (error || !data) return <ErrorBlock message="Không tải được dữ liệu ôn tập." onRetry={() => refetch()} />
 
   const dueCount = data.stats.dueCount
   const unresolved = data.mistakeStats.unresolved
+  const resolvedTotal = data.mistakeStats.total - data.mistakeStats.unresolved
+  const resolvedPct = data.mistakeStats.total > 0 ? Math.round((resolvedTotal / data.mistakeStats.total) * 100) : 0
 
   return (
     <div>
@@ -145,21 +166,52 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
       ) : (
         <>
           {/* Mistake notebook */}
-          <div className="rounded-3xl border-2 border-sakura/40 bg-sakura/5 p-6 mb-6 flex flex-col sm:flex-row items-center gap-4">
+          <div className="rounded-3xl border-2 border-sakura/40 bg-sakura/5 p-6 mb-4 flex flex-col sm:flex-row items-center gap-4">
             <Wrench className="h-12 w-12 text-sakura shrink-0" aria-hidden />
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-extrabold">Sổ lỗi sai — {data.mistakeStats.unresolved} lỗi chưa sửa</h2>
+              <h2 className="text-xl font-extrabold">Sổ lỗi sai — {unresolved} lỗi chưa sửa</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Mỗi câu bạn trả lời sai được lưu lại kèm đáp án đúng. Luyện lại đến khi sạch sổ!
               </p>
+              {data.mistakeStats.total > 0 && (
+                <div className="mt-2.5 flex items-center gap-2 max-w-xs">
+                  <Progress value={resolvedPct} className="h-2 flex-1" />
+                  <span className="text-xs font-bold text-sakura tabular-nums shrink-0">{resolvedPct}% đã sửa</span>
+                </div>
+              )}
             </div>
             <Button onClick={startMistakes} disabled={unresolved === 0} className="rounded-2xl h-12 px-7 font-bold shrink-0">
               Luyện lại lỗi sai <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
 
+          {/* Bộ lọc lỗi sai */}
+          <div className="flex gap-2 mb-3" role="group" aria-label="Lọc sổ lỗi sai">
+            {(
+              [
+                { key: 'unresolved', label: `Chưa sửa (${unresolved})` },
+                { key: 'resolved', label: `Đã sửa (${resolvedTotal})` },
+                { key: 'all', label: `Tất cả (${data.mistakeStats.total})` },
+              ] as const
+            ).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setMistakeFilter(f.key)}
+                aria-pressed={mistakeFilter === f.key}
+                className={cn(
+                  'rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  mistakeFilter === f.key
+                    ? 'border-sakura bg-sakura/10 text-sakura'
+                    : 'border-border text-muted-foreground hover:border-sakura/40'
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           <div className="space-y-2.5 max-h-[28rem] overflow-y-auto nice-scroll pr-1">
-            {data.mistakes.map((m) => (
+            {filteredMistakes.map((m) => (
               <div
                 key={m.id}
                 className={cn(
@@ -184,19 +236,41 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
                   <div className="shrink-0 text-right">
                     <span
                       className={cn(
-                        'text-[10px] font-bold rounded-full px-2 py-0.5',
+                        'text-[10px] font-bold rounded-full px-2 py-0.5 inline-flex items-center gap-1',
                         m.resolved ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
                       )}
                     >
-                      {m.resolved ? 'Đã sửa' : `Sai ${m.timesWrong} lần`}
+                      {m.resolved ? (
+                        <>
+                          <CheckCircle2 className="h-3 w-3" aria-hidden /> Đã sửa
+                        </>
+                      ) : (
+                        `Sai ${m.timesWrong} lần`
+                      )}
                     </span>
-                    <p className="text-[10px] text-muted-foreground mt-1.5">
-                      {new Date(m.lastWrongAt).toLocaleDateString('vi-VN')}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">{relativeDays(m.lastWrongAt)}</p>
                   </div>
                 </div>
               </div>
             ))}
+            {filteredMistakes.length === 0 && data.mistakes.length > 0 && (
+              <EmptyBlock
+                icon={mistakeFilter === 'resolved' ? 'Wrench' : 'Sparkles'}
+                title={mistakeFilter === 'resolved' ? 'Chưa có lỗi nào được sửa' : 'Không còn lỗi chưa sửa!'}
+                description={
+                  mistakeFilter === 'resolved'
+                    ? 'Luyện lại lỗi sai trong sổ — khi trả lời đúng, chúng sẽ được đánh dấu đã sửa.'
+                    : 'Bạn đã sửa sạch các lỗi trong sổ — tiếp tục phát huy nhé!'
+                }
+                action={
+                  mistakeFilter === 'resolved' ? (
+                    <Button variant="outline" onClick={() => setMistakeFilter('unresolved')}>Xem lỗi chưa sửa</Button>
+                  ) : (
+                    <Button variant="outline" onClick={startMistakes} disabled={unresolved === 0}>Luyện lại</Button>
+                  )
+                }
+              />
+            )}
             {data.mistakes.length === 0 && (
               <EmptyBlock
                 icon="Sparkles"

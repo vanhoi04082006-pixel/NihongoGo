@@ -5,27 +5,28 @@ import { db } from '@/lib/db'
 import { getStreakInfo, getRecentStreakDays } from '@/server/services/streak'
 import { getSrsOverview, getDueStats } from '@/server/services/srs'
 import { getMistakeStats } from '@/server/services/mistakes'
-import { dateInTz, todayInTz, userTimezone } from '@/lib/datetime'
+import { dateInTz, dayStartEpoch, todayInTz, userTimezone } from '@/lib/datetime'
 
 export const dynamic = 'force-dynamic'
 
 export const GET = route(async (req: NextRequest) => {
   const authUser = await requireUser(req)
   const tz = userTimezone(authUser.profile?.timezone)
-  const [progress, streak, srsOverview, dueStats, mistakeStats, userRow] = await Promise.all([
+  const [progress, streak, srsOverview, dueStats, mistakeStats, userRow, challengeCount] = await Promise.all([
     db.userProgress.findUnique({ where: { userId: authUser.id } }),
     getStreakInfo(authUser.id),
     getSrsOverview(authUser.id),
     getDueStats(authUser.id),
     getMistakeStats(authUser.id),
     db.user.findUnique({ where: { id: authUser.id }, select: { createdAt: true, username: true } }),
+    db.lessonSession.count({ where: { userId: authUser.id, sessionType: 'CHALLENGE', status: 'COMPLETED' } }),
   ])
 
-  // Thống kê XP theo ngày (7/30 ngày)
+  // Thống kê XP theo ngày (7/30 ngày) — ranh giới ngày theo timezone user
   const today = todayInTz(tz)
-  const start30 = dateInTz(new Date(Date.now() - 29 * 86400000), tz)
+  const start30Epoch = dayStartEpoch(new Date(Date.now() - 29 * 86400000), tz)
   const rows = await db.xPTransaction.findMany({
-    where: { userId: authUser.id, createdAt: { gte: new Date(start30 + 'T00:00:00Z') } },
+    where: { userId: authUser.id, createdAt: { gte: new Date(start30Epoch) } },
     select: { amount: true, createdAt: true },
   })
   const byDate = new Map<string, number>()
@@ -56,6 +57,7 @@ export const GET = route(async (req: NextRequest) => {
       speakingNodes: progress?.speakingNodes ?? 0,
       studyTimeSeconds: progress?.studyTimeSeconds ?? 0,
       league: progress?.currentLeague ?? 'SAKURA',
+      challengesCompleted: challengeCount,
     },
     streak,
     streak30: await getRecentStreakDays(authUser.id, 30),
