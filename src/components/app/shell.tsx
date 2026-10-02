@@ -1,10 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useTheme } from 'next-themes'
-import { BookOpen, BookMarked, BookText, Flame, Languages, PenLine, RefreshCw, Search, Trophy, Target, Award, User, Settings, Shield, Moon, Sun, LogOut } from 'lucide-react'
+import { BookOpen, BookMarked, BookText, Flame, Languages, PenLine, RefreshCw, Search, Trophy, Target, Award, User, Settings, Shield, Moon, Sun, LogOut, WifiOff, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { useHashRoute } from './router'
 import { useAuth, useAuthActions } from './use-auth'
@@ -57,6 +57,52 @@ function randomProverb() {
   while (i === lastProverbIdx) i = Math.floor(Math.random() * PROVERBS.length)
   lastProverbIdx = i
   return PROVERBS[i]
+}
+
+/* ------------------------------ ConnectionState ------------------------------ */
+
+/**
+ * Cờ kết nối mạng (thuần client): navigator.onLine + event online/offline.
+ * Dùng cho banner mất kết nối + toast khi trở lại trực tuyến.
+ */
+function useConnectionState(): { online: boolean; justReconnected: boolean } {
+  const [online, setOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  )
+  const [justReconnected, setJustReconnected] = useState(false)
+
+  useEffect(() => {
+    const goOffline = () => setOnline(false)
+    const goOnline = () => {
+      setOnline(true)
+      setJustReconnected(true)
+      window.setTimeout(() => setJustReconnected(false), 1200)
+    }
+    window.addEventListener('offline', goOffline)
+    window.addEventListener('online', goOnline)
+    return () => {
+      window.removeEventListener('offline', goOffline)
+      window.removeEventListener('online', goOnline)
+    }
+  }, [])
+
+  return { online, justReconnected }
+}
+
+/** Banner mảnh nằm dưới TopBar khi mất mạng — glass, animation trượt xuống. */
+function ConnectionBanner({ visible }: { visible: boolean }) {
+  if (!visible) return null
+  return (
+    <div
+      role="status"
+      className="sticky top-14 sm:top-16 z-20 -mt-px border-b border-warning/30 bg-warning/[0.12] backdrop-blur animate-slide-down"
+    >
+      <div className="mx-auto max-w-6xl px-3 sm:px-6 py-1.5 flex items-center justify-center gap-2 text-[12px] font-semibold text-[#8a5a0f] dark:text-[#f0b454]">
+        <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span>Mất kết nối — tiến độ sẽ tự lưu khi mạng trở lại</span>
+      </div>
+    </div>
+  )
 }
 
 /* --------------------------------- Sidebar -------------------------------- */
@@ -121,6 +167,7 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const { data: overview, isLoading } = useOverview()
   const { logout } = useAuthActions(useHashRoute())
   const { theme, setTheme } = useTheme()
+  const { online, justReconnected } = useConnectionState()
 
   // Nhắc nhẹ 1 lần/ngày khi mục tiêu ngày chưa đạt — thuần client (localStorage),
   // biến thể theo khung giờ: buổi sáng chào đón, buổi tối khẩn cấp giữ chuỗi.
@@ -177,7 +224,18 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
     })
   }
 
+  // Toast khi mạng trở lại sau khi mất (nhẹ nhàng, có icon)
+  useEffect(() => {
+    if (justReconnected) {
+      toast.success('Đã kết nối lại — tiếp tục học thôi!', {
+        icon: <Wifi className="h-4 w-4" />,
+        duration: 4000,
+      })
+    }
+  }, [justReconnected])
+
   return (
+    <>
     <header className="sticky top-0 z-30 bg-background/85 backdrop-blur border-b">
       <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16 px-3 sm:px-6">
         <button className="lg:hidden flex items-center outline-none" onClick={() => navigate('/')} aria-label="Trang chủ">
@@ -269,6 +327,8 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
         </DropdownMenu>
       </div>
     </header>
+    <ConnectionBanner visible={!online} />
+    </>
   )
 }
 

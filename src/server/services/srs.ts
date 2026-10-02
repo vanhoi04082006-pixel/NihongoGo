@@ -61,6 +61,78 @@ export async function recordAnswerSrs(userId: string, ref: SrsItemRef, isCorrect
   return reviewSrsItem(userId, ref, isCorrect ? 'GOOD' : 'AGAIN')
 }
 
+/** Payload trạng thái SRS trả về client sau khi lưu. */
+export interface SavedSrsPayload {
+  itemType: string
+  itemKey: string
+  status: 'NEW' | 'LEARNING' | 'REVIEW' | 'MASTERED' | 'WEAK'
+  mastery: number
+  reviewCount: number
+  lapseCount: number
+  nextReviewAt: string | null
+}
+
+/**
+ * Người học chủ động LƯU một mục vào sổ ôn tập (bookmark SRS) từ dialog
+ * chi tiết từ vựng / ngữ pháp. Item phải tồn tại trong kho nội dung PUBLISHED
+ * (chống spam key rác), đã có thì giữ nguyên tiến độ (idempotent).
+ * Item mới ở trạng thái NEW, đến hạn ôn NGAY để xuất hiện trong hàng đợi ôn.
+ */
+export async function saveItemToSrs(
+  userId: string,
+  itemType: 'VOCAB' | 'GRAMMAR' | 'KANJI' | 'KANA',
+  itemKey: string,
+): Promise<SavedSrsPayload> {
+  const key = itemKey.trim()
+  if (!key || key.length > 120) throw new Error('INVALID_KEY')
+
+  // Xác thực mục tồn tại trong nội dung chính thức (tránh tạo item rác)
+  switch (itemType) {
+    case 'VOCAB': {
+      const v = await db.vocabulary.findFirst({ where: { term: key }, select: { id: true } })
+      if (!v) throw new Error('NOT_FOUND')
+      break
+    }
+    case 'GRAMMAR': {
+      const g = await db.grammarPoint.findUnique({ where: { code: key }, select: { id: true } })
+      if (!g) throw new Error('NOT_FOUND')
+      break
+    }
+    case 'KANJI': {
+      const k = await db.kanji.findUnique({ where: { character: key }, select: { id: true } })
+      if (!k) throw new Error('NOT_FOUND')
+      break
+    }
+    case 'KANA': {
+      const ka = await db.kanaCharacter.findFirst({ where: { character: key }, select: { id: true } })
+      if (!ka) throw new Error('NOT_FOUND')
+      break
+    }
+  }
+
+  const item = await db.sRSItem.upsert({
+    where: { userId_itemType_itemKey: { userId, itemType, itemKey: key } },
+    update: {},
+    create: {
+      userId,
+      itemType,
+      itemKey: key,
+      nextReviewAt: new Date(), // đến hạn ôn ngay → vào hàng đợi ôn tập
+    },
+  })
+
+  const weak = item.lapseCount >= 2 || (item.reviewCount >= 2 && item.mastery <= 2 && item.state !== 'MASTERED')
+  return {
+    itemType,
+    itemKey: key,
+    status: weak ? 'WEAK' : (item.state as 'NEW' | 'LEARNING' | 'REVIEW' | 'MASTERED'),
+    mastery: item.mastery,
+    reviewCount: item.reviewCount,
+    lapseCount: item.lapseCount,
+    nextReviewAt: item.nextReviewAt?.toISOString() ?? null,
+  }
+}
+
 export interface DueStat {
   dueCount: number
   totalItems: number

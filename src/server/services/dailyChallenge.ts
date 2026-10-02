@@ -29,6 +29,15 @@ export interface ChallengeInfo {
   correctCount: number
   /** Số ngày thử thách liên tiếp (kể cả hôm nay nếu đã xong). */
   challengeStreak: number
+  /** Phạm vi ôn tập: câu lấy từ những bài nào (để hiển thị chip trên hub). */
+  reviewScope: {
+    /** Tên các bài học gần nhất có câu trong thử thách (tối đa 3). */
+    lessonTitles: string[]
+    /** Số câu lấy từ bài ĐÃ HỌC gần đây (ưu tiên ôn kiến thức mới). */
+    recentCount: number
+    /** Số câu lấy từ kho câu đã học cũ hơn (rộng hơn). */
+    olderCount: number
+  }
 }
 
 /**
@@ -87,13 +96,52 @@ export async function getChallengeInfo(userId: string): Promise<ChallengeInfo> {
         : 0,
     correctCount: session?.status === 'COMPLETED' ? session.correctCount : 0,
     challengeStreak,
+    reviewScope: await getChallengeReviewScope(userId),
+  }
+}
+
+/**
+ * Phạm vi ôn tập của thử thách hôm nay: câu ưu tiên từ các bài ĐÃ HỌC GẦN
+ * ĐÂY (5 bài mới nhất theo thứ tự hoàn thành) + phần còn lại từ mọi bài đã học.
+ * Trả về tên bài (tối đa 3) + số câu recent/older để hub hiển thị chip.
+ */
+export async function getChallengeReviewScope(
+  userId: string,
+): Promise<ChallengeInfo['reviewScope']> {
+  const RECENT_NODES = 5
+  const RECENT_SHARE = 0.7 // ~70% câu từ bài học gần nhất
+
+  const nodes = await db.nodeProgress.findMany({
+    where: { userId, status: { in: ['COMPLETED', 'MASTERED'] } },
+    orderBy: { completedAt: 'desc' },
+    take: RECENT_NODES,
+    select: { node: { select: { title: true } } },
+  })
+  const totalDone = await db.nodeProgress.count({
+    where: { userId, status: { in: ['COMPLETED', 'MASTERED'] } },
+  })
+
+  if (totalDone === 0) {
+    return { lessonTitles: [], recentCount: 0, olderCount: CHALLENGE_QUESTIONS }
+  }
+
+  const recentCount = Math.min(
+    CHALLENGE_QUESTIONS - 1,
+    Math.max(1, Math.round(CHALLENGE_QUESTIONS * RECENT_SHARE)),
+  )
+  return {
+    lessonTitles: nodes.map((n) => n.node.title).slice(0, 3),
+    recentCount,
+    olderCount: CHALLENGE_QUESTIONS - recentCount,
   }
 }
 
 /**
  * Chọn all định (user + ngày) tối đa 10 câu hỏi cho thử thách.
- * Ưu tiên câu từ ải user đã hoàn thành (ônn tập kiến thức đã học); nếu chưa
- * học ải nào → dùng mọi câu PUBLISHED.
+ * Phân tầng theo cấp độ đã học:
+ *  - ~70% câu từ 5 bài ĐÃ HỌC GẦN NHẤT (ôn đậm kiến thức mới học),
+ *  - phần còn lại từ MỌI bài đã hoàn thành (ôn rộng),
+ *  - chưa học bài nào → mọi câu PUBLISHED.
  */
 export async function buildChallengeQuestionIds(userId: string): Promise<string[]> {
   const user = await db.user.findUnique({ where: { id: userId }, include: { profile: true } })
@@ -103,9 +151,12 @@ export async function buildChallengeQuestionIds(userId: string): Promise<string[
 
   const completedNodes = await db.nodeProgress.findMany({
     where: { userId, status: { in: ['COMPLETED', 'MASTERED'] } },
+    orderBy: { completedAt: 'desc' },
     select: { nodeId: true },
   })
   const completedIds = completedNodes.map((n) => n.nodeId)
+  const recentIds = completedIds.slice(0, 5) // 5 bài học gần nhất
+  const olderIds = completedIds.slice(5)
 
   const baseWhere = {
     exercise: {
@@ -114,25 +165,34 @@ export async function buildChallengeQuestionIds(userId: string): Promise<string[
     },
   }
 
-  // Ưu tiên 1: câu trong ải đã hoàn thành
+  const recentQuota =
+    recentIds.length > 0
+      ? Math.min(
+          CHALLENGE_QUESTIONS - 1,
+          Math.max(1, Math.round(CHALLENGE_QUESTIONS * 0.7)),
+        )
+      : 0
+
+  // Tầng 1: câu từ 5 bài học GẦN NHẤT (ôn kiến thức mới)
   let ids: string[] = []
-  if (completedIds.length > 0) {
-    const rows = await db.question.findMany({
-      where: { ...baseWhere, exercise: { node: { id: { in: completedIds } } } },
-      select: { id: true, data: true },
-      take: 400,
-      orderBy: { order: 'asc' },
-    })
-    ids = rows.filter((q) => {
-      try {
-        return CHALLENGE_KINDS.has((JSON.parse(q.data) as QuestionDataShape).kind)
-      } catch {
-        return false
-      }
-    }).map((q) => q.id)
+  if (recentIds.length > 0) {
+    ids = await pickChallengeIds(baseWhere, recentIds, recentQuota)
   }
 
-  // Ưu tiên 2: mọi câu PUBLISHED (chưa học ải nào hoặc ưu tiên 1 chưa đủ)
+  // Tầng 2: câu từ các bài đã học cũ hơn (ôn rộng)
+  if (olderIds.length > 0 && ids.length < CHALLENGE_QUESTIONS) {
+    const extra = await pickChallengeIds(baseWhere, olderIds, CHALLENGE_QUESTIONS - ids.length)
+    ids.push(...extra)
+  }
+
+  // Tầng 3: chưa đủ → mở rộng ra MỌI bài đã hoàn thành (đề phòng node cũ
+  // ít câu) rồi mọi câu PUBLISHED nếu user chưa học bài nào
+  if (ids.length < CHALLENGE_QUESTIONS && completedIds.length > 0) {
+    const extra = await pickChallengeIds(baseWhere, completedIds, CHALLENGE_QUESTIONS - ids.length, new Set(ids))
+    ids.push(...extra)
+  }
+
+  // Tầng 4: chưa học ải nào (hoặc vẫn thiếu) → mọi câu PUBLISHED
   if (ids.length < CHALLENGE_QUESTIONS) {
     const rows = await db.question.findMany({
       where: baseWhere,
@@ -140,6 +200,7 @@ export async function buildChallengeQuestionIds(userId: string): Promise<string[
       take: 800,
       orderBy: { order: 'asc' },
     })
+    const seen = new Set(ids)
     const pool = rows.filter((q) => {
       try {
         return CHALLENGE_KINDS.has((JSON.parse(q.data) as QuestionDataShape).kind)
@@ -147,9 +208,8 @@ export async function buildChallengeQuestionIds(userId: string): Promise<string[
         return false
       }
     }).map((q) => q.id)
-    const seen = new Set(ids)
     for (const id of pool) {
-      if (ids.length >= 200) break
+      if (ids.length >= Math.max(CHALLENGE_QUESTIONS, 200)) break
       if (!seen.has(id)) {
         ids.push(id)
         seen.add(id)
@@ -165,4 +225,36 @@ export async function buildChallengeQuestionIds(userId: string): Promise<string[
     ;[ids[i], ids[j]] = [ids[j], ids[i]]
   }
   return ids.slice(0, CHALLENGE_QUESTIONS)
+}
+
+/** Lấy câu hỏi chấm nhanh từ một nhóm node, tối đa `quota` câu (all định theo seed). */
+async function pickChallengeIds(
+  baseWhere: {
+    exercise: {
+      status: 'PUBLISHED'
+      node: { status: 'PUBLISHED'; lesson: { status: 'PUBLISHED' } }
+    }
+  },
+  nodeIds: string[],
+  quota: number,
+  exclude?: Set<string>,
+): Promise<string[]> {
+  if (quota <= 0 || nodeIds.length === 0) return []
+  const rows = await db.question.findMany({
+    where: { ...baseWhere, exercise: { node: { id: { in: nodeIds } } } },
+    select: { id: true, data: true },
+    take: 400,
+    orderBy: { order: 'asc' },
+  })
+  return rows
+    .filter((q) => {
+      if (exclude?.has(q.id)) return false
+      try {
+        return CHALLENGE_KINDS.has((JSON.parse(q.data) as QuestionDataShape).kind)
+      } catch {
+        return false
+      }
+    })
+    .slice(0, quota)
+    .map((q) => q.id)
 }

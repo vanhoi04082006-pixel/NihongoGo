@@ -1072,8 +1072,40 @@ function ZigzagLessonPath({
     return <p className="text-xs text-muted-foreground py-3 text-center">Nội dung sắp ra mắt</p>
   }
 
+  /**
+   * Roving keyboard nav cho lộ trình: ↑↓←→ di chuyển giữa các ải,
+   * Home/End nhảy đầu/cuối. Node bị khóa bị bỏ qua (disabled).
+   */
+  const handlePathKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    if (!target.matches('button[data-path-node]')) return
+    const btns = Array.from(
+      containerRef.current?.querySelectorAll<HTMLButtonElement>('button[data-path-node]:not(:disabled)') ?? [],
+    )
+    if (btns.length === 0) return
+    const idx = btns.indexOf(target as HTMLButtonElement)
+    let next = -1
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = Math.min(btns.length - 1, idx + 1)
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = Math.max(0, idx - 1)
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = btns.length - 1
+    if (next < 0 || next === idx) return
+    e.preventDefault()
+    const el = btns[next]!
+    el.focus()
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }
+
   return (
-    <div ref={containerRef} className="relative" style={{ height }}>
+    <div
+      ref={containerRef}
+      className="relative"
+      style={{ height }}
+      onKeyDown={handlePathKeyDown}
+    >
+      <p className="sr-only">
+        Lộ trình gồm {nodes.length} ải. Dùng phím mũi tên lên/xuống để di chuyển giữa các ải, Enter để mở ải đang chọn.
+      </p>
       {/* Đường đi mờ phía sau các node */}
       {pathD && (
         <svg
@@ -1242,6 +1274,7 @@ function PathNode({
               }
             }}
             disabled={isLocked}
+            data-path-node
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${node.title} — ${isLocked ? 'đang khóa' : isDone ? 'đã hoàn thành' : 'sẵn sàng'}`}
             className={cn(
@@ -1758,6 +1791,11 @@ interface ChallengeInfoDTO {
   accuracy: number
   correctCount: number
   challengeStreak: number
+  reviewScope: {
+    lessonTitles: string[]
+    recentCount: number
+    olderCount: number
+  }
 }
 
 /**
@@ -1844,6 +1882,21 @@ function DailyChallengeCard() {
             ? `Chính xác ${data.accuracy}% (${data.correctCount}/${data.total}) · +${data.xpEarned} XP — hẹn mai thử thách mới!`
             : `${data.total} câu ôn kiến thức đã học · không tốn tim · chỉ 1 lần/ngày`}
         </p>
+        {!done && data.reviewScope && data.reviewScope.lessonTitles.length > 0 && (
+          <p
+            className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-warning/[0.08] border border-warning/25 px-2 py-0.5 text-[10.5px] font-semibold text-warning dark:text-warning/90"
+            title={`Ôn tập từ: ${data.reviewScope.lessonTitles.join(', ')}`}
+          >
+            <BookOpen className="h-3 w-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              Ôn từ “{data.reviewScope.lessonTitles[0]}”
+              {data.reviewScope.lessonTitles.length > 1 && ` +${data.reviewScope.lessonTitles.length - 1} bài`}
+            </span>
+            <span className="shrink-0 opacity-75">
+              · {data.reviewScope.recentCount}/{data.total} câu từ bài mới
+            </span>
+          </p>
+        )}
       </div>
       {!done && (
         <button

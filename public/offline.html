@@ -3,9 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
     <title>Ngoại tuyến — NihongoGo</title>
     <style>
-      :root { color-scheme: light dark }
+      :root {
+        color-scheme: light dark;
+        --bg: #faf7f1;
+        --card: #ffffff;
+        --border: #e7e0d3;
+        --text: #2b2620;
+        --muted: #847c6e;
+        --primary: #4f46e5;
+        --sakura: #e8609a;
+        --warning: #f59e0b;
+        --success: #16a34a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16131d;
+          --card: #1f1b29;
+          --border: #322d42;
+          --text: #f0ede7;
+          --muted: #a49c8e;
+        }
+      }
+      * { box-sizing: border-box }
       body {
         margin: 0;
         min-height: 100vh;
@@ -13,54 +35,183 @@
         align-items: center;
         justify-content: center;
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-        background: #faf7f1;
-        color: #2b2620;
-      }
-      @media (prefers-color-scheme: dark) {
-        body { background: #16131d; color: #f0ede7 }
-        .card { background: #1f1b29 !important; border-color: #322d42 !important }
+        background:
+          radial-gradient(900px 480px at 85% -10%, rgba(232, 96, 154, 0.10), transparent 60%),
+          radial-gradient(700px 420px at 0% 100%, rgba(79, 70, 229, 0.07), transparent 55%),
+          var(--bg);
+        color: var(--text);
       }
       .card {
-        max-width: 380px;
+        max-width: 420px;
         margin: 16px;
-        padding: 40px 32px;
-        border: 1px solid #e7e0d3;
-        border-radius: 24px;
-        background: #ffffff;
+        padding: 40px 32px 32px;
+        border: 1px solid var(--border);
+        border-radius: 26px;
+        background: var(--card);
         text-align: center;
+        box-shadow: 0 18px 44px -24px rgba(43, 38, 32, 0.22);
       }
-      .mark { display: inline-block; margin-bottom: 18px }
-      h1 { font-size: 22px; margin: 0 0 8px }
-      p { font-size: 14px; line-height: 1.6; color: #847c6e; margin: 0 0 24px }
-      a {
-        display: inline-block;
-        padding: 12px 28px;
+      /* Mascot + sóng wifi đứt — rung nhẹ vô hạn */
+      .hero { position: relative; display: inline-block; margin-bottom: 18px }
+      .wifi-off {
+        position: absolute;
+        right: -10px;
+        bottom: -4px;
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: var(--warning);
+        color: #fff;
+        font-size: 15px;
+        box-shadow: 0 4px 12px -4px rgba(245, 158, 11, 0.6);
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1 }
+        50% { transform: scale(1.12); opacity: 0.85 }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .wifi-off { animation: none }
+        .jp { animation: none }
+      }
+      h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em }
+      .jp {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--sakura);
+        letter-spacing: 0.3em;
+        margin-bottom: 4px;
+        animation: float 3s ease-in-out infinite;
+      }
+      @keyframes float {
+        0%, 100% { transform: translateY(0) }
+        50% { transform: translateY(-3px) }
+      }
+      p { font-size: 14px; line-height: 1.65; color: var(--muted); margin: 0 0 20px }
+      .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap }
+      a, button.btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 26px;
+        border: 0;
         border-radius: 14px;
-        background: #4f46e5;
+        background: var(--primary);
         color: #fff;
         font-weight: 700;
         font-size: 15px;
         text-decoration: none;
+        cursor: pointer;
+        font-family: inherit;
+        transition: transform 0.15s ease, opacity 0.15s ease;
       }
-      .hint { margin-top: 18px; font-size: 12px; color: #847c6e }
+      a:hover, button.btn:hover { transform: translateY(-1px); opacity: 0.92 }
+      a:active, button.btn:active { transform: translateY(0) scale(0.98) }
+      .hint {
+        margin-top: 22px;
+        padding-top: 16px;
+        border-top: 1px dashed var(--border);
+        font-size: 12px;
+        line-height: 1.7;
+        color: var(--muted);
+        text-align: left;
+      }
+      .hint b { color: var(--text) }
+      .hint .dot { color: var(--sakura); margin-right: 6px }
+      .status {
+        margin-top: 14px;
+        font-size: 12.5px;
+        color: var(--muted);
+        min-height: 18px;
+      }
+      .status.ok { color: var(--success); font-weight: 700 }
+      .countdown { font-variant-numeric: tabular-nums }
     </style>
   </head>
   <body>
     <main class="card">
-      <svg class="mark" width="64" height="64" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <rect x="2" y="2" width="44" height="44" rx="14" fill="#4f46e5" />
-        <circle cx="24" cy="26" r="10" fill="#e8609a" />
-        <path d="M10 16.5c4.5-2.2 9-3.3 14-3.3s9.5 1.1 14 3.3" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
-        <path d="M24 14.5v20" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
-        <path d="M15.5 22h17" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
-      </svg>
-      <h1>Bạn đang ngoại tuyến</h1>
+      <div class="hero" aria-hidden="true">
+        <!-- Mascot shiba của NihongoGo (SVG gốc, không bản quyền) -->
+        <svg width="84" height="84" viewBox="0 0 48 48" fill="none">
+          <rect x="2" y="2" width="44" height="44" rx="14" fill="#4f46e5" />
+          <circle cx="24" cy="27" r="11" fill="#f5a524" />
+          <circle cx="24" cy="27" r="11" fill="url(#shine)" />
+          <path d="M14 18.5c1.8-3.2 4.6-5 7-5.2L19.5 17c-1.8.3-3.8.8-5.5 1.5Z" fill="#f5a524" />
+          <path d="M34 18.5c-1.8-3.2-4.6-5-7-5.2L28.5 17c1.8.3 3.8.8 5.5 1.5Z" fill="#f5a524" />
+          <circle cx="19.5" cy="26" r="1.6" fill="#2b2620" />
+          <circle cx="28.5" cy="26" r="1.6" fill="#2b2620" />
+          <ellipse cx="24" cy="30.5" rx="2.1" ry="1.6" fill="#fff" />
+          <circle cx="24" cy="29.8" r="1" fill="#2b2620" />
+          <path d="M24 31v1.6m0 0c-.7 1-1.9 1.2-2.7.6m2.7-.6c.7 1 1.9 1.2 2.7.6" stroke="#2b2620" stroke-width=".8" stroke-linecap="round" />
+          <defs>
+            <linearGradient id="shine" x1="13" y1="16" x2="35" y2="38" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#fff" stop-opacity=".35" />
+              <stop offset=".5" stop-color="#fff" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="wifi-off">⚡</span>
+      </div>
+      <h1><span class="jp">おやすみ</span>Bạn đang ngoại tuyến</h1>
       <p>
-        Hãy kết nối lại Internet để tiếp tục hành trình học tiếng Nhật. Tiến độ, chuỗi ngày và XP của bạn
+        Không thể kết nối tới máy chủ. Tiến độ, chuỗi ngày và XP của bạn
         được lưu an toàn trên máy chủ — không mất gì cả.
       </p>
-      <a href="/">Thử lại</a>
-      <p class="hint">Mẹo: các trang đã xem (kana, từ vựng) vẫn hoạt động khi ngoại tuyến.</p>
+      <div class="actions">
+        <button class="btn" id="retry" type="button">⟳ Thử kết nối lại</button>
+      </div>
+      <p class="status countdown" id="status" role="status" aria-live="polite">
+        Tự động thử lại sau <span class="countdown" id="count">15</span>s…
+      </p>
+      <div class="hint">
+        <b>Khi chờ mạng:</b><br />
+        <span class="dot">🌸</span>Trang đã xem (kana, từ vựng…) vẫn đọc được từ bộ nhớ tạm.<br />
+        <span class="dot">🌸</span>Bài học đang dở sẽ được giữ nguyên khi bạn quay lại.<br />
+        <span class="dot">🌸</span>Kết nối lại là tiếp tục học ngay — がんばって!
+      </div>
     </main>
+
+    <script>
+      // Tự tải lại ngay khi mạng trở lại + đếm ngược thử lại định kỳ.
+      let remain = 15
+      const countEl = document.getElementById('count')
+      const statusEl = document.getElementById('status')
+      const retryBtn = document.getElementById('retry')
+
+      function tick() {
+        remain -= 1
+        if (remain <= 0) {
+          location.reload()
+          return
+        }
+        if (countEl) countEl.textContent = String(remain)
+      }
+      let timer = setInterval(tick, 1000)
+
+      function goOnline() {
+        clearInterval(timer)
+        if (statusEl) {
+          statusEl.textContent = '✓ Đã có kết nối — đang tải lại…'
+          statusEl.classList.add('ok')
+        }
+        if (retryBtn) retryBtn.disabled = true
+        setTimeout(() => location.reload(), 600)
+      }
+      window.addEventListener('online', goOnline)
+
+      retryBtn?.addEventListener('click', () => {
+        if (navigator.onLine) {
+          goOnline()
+          return
+        }
+        remain = 15
+        if (statusEl) statusEl.textContent = 'Vẫn chưa có mạng — thử lại sau 15s nữa nhé.'
+      })
+
+      if (navigator.onLine) goOnline()
+    </script>
   </body>
 </html>

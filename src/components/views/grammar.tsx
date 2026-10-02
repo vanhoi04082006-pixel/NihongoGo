@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { BookOpen, Search, Sparkles, Star, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { BookmarkCheck, BookmarkPlus, BookOpen, Loader2, Search, Sparkles, Star, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '@/lib/client/api'
 import { LoadingBlock, ErrorBlock, PageHeader, EmptyBlock } from '@/components/shared/widgets'
 import { AudioButton } from '@/components/shared/audio-button'
@@ -289,7 +290,46 @@ function GrammarDetailDialog({
   onClose: () => void
 }) {
   const { navigate } = useHashRoute()
+  const queryClient = useQueryClient()
   const open = !!detail
+  const item = detail?.item ?? null
+  const [savedSrs, setSavedSrs] = useState<SrsStatusInfo | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Đổi mẫu câu → reset trạng thái lưu (đồng bộ lại từ dữ liệu cha)
+  useEffect(() => {
+    setSavedSrs(null)
+    setSaving(false)
+  }, [item?.code])
+
+  const effectiveSrs = savedSrs ?? item?.srs ?? null
+  const srsKey = effectiveSrs ? (effectiveSrs.status ?? effectiveSrs.state ?? 'NEW') : null
+  const showSaveCta = !effectiveSrs || (srsKey === 'NEW' && !effectiveSrs.nextReviewAt)
+
+  const saveToSrs = async () => {
+    if (!item) return
+    setSaving(true)
+    try {
+      const res = await api<SrsStatusInfo & { itemKey: string }>('/api/srs/save', {
+        method: 'POST',
+        json: { itemType: 'GRAMMAR', itemKey: item.code },
+      })
+      setSavedSrs(res)
+      toast.success('Đã thêm mẫu câu vào sổ ôn tập', {
+        description: 'Mẫu câu này sẽ xuất hiện trong hàng đợi Ôn tập hôm nay.',
+        duration: 5000,
+      })
+      // Làm mới số liệu sổ ôn (review/overview/grammar) ở nền
+      void queryClient.invalidateQueries({ queryKey: ['review'] })
+      void queryClient.invalidateQueries({ queryKey: ['overview'] })
+      void queryClient.invalidateQueries({ queryKey: ['grammar'] })
+    } catch {
+      toast.error('Chưa lưu được vào sổ ôn — thử lại sau nhé!')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-xl max-h-[88vh] overflow-y-auto nice-scroll">
@@ -340,9 +380,35 @@ function GrammarDetailDialog({
 
             {/* Tiến độ ghi nhớ SRS của mẫu câu này */}
             <SrsMemorySection
-              srs={detail.item.srs ?? null}
-              emptyText="Mẫu câu này chưa có trong lịch ôn — luyện trong bài học hoặc ôn tập để bắt đầu theo dõi nhé!"
+              srs={effectiveSrs}
+              emptyText={
+                savedSrs
+                  ? 'Đã lưu vào sổ ôn — chưa luyện lần nào. Mở tab Ôn tập để bắt đầu ghi nhớ!'
+                  : 'Mẫu câu này chưa có trong lịch ôn — lưu vào sổ ôn để thuật toán lặp lại ngắt quãng nhắc bạn đúng lúc nhé!'
+              }
             />
+
+            {/* CTA lưu vào sổ ôn (chỉ khi chưa theo dõi) */}
+            {showSaveCta ? (
+              <Button
+                variant="outline"
+                className="w-full rounded-xl"
+                onClick={saveToSrs}
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <BookmarkPlus className="h-4 w-4" aria-hidden />
+                )}
+                {saving ? 'Đang lưu…' : 'Thêm vào sổ ôn tập'}
+              </Button>
+            ) : savedSrs ? (
+              <p className="flex items-center justify-center gap-1.5 text-xs font-semibold text-success" role="status">
+                <BookmarkCheck className="h-4 w-4" aria-hidden />
+                Đã nằm trong sổ ôn — mở tab Ôn tập để luyện ngay
+              </p>
+            ) : null}
 
             {/* Ví dụ — mỗi câu có audio riêng */}
             {detail.item.examples.length > 0 && (

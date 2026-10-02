@@ -4,7 +4,7 @@
  * QUAN TRỌNG: chunk của dev server (Turbopack) giữ nguyên tên file khi code thay đổi,
  * nên KHÔNG được cache-first với /_next/static — nếu không trình duyệt sẽ mãi mãi
  * chạy code cũ sau mỗi lần deploy/cập nhật. */
-const VERSION = 'nihongogo-v3'
+const VERSION = 'nihongogo-v4'
 const STATIC_CACHE = `${VERSION}-static`
 const OFFLINE_URL = '/offline.html'
 
