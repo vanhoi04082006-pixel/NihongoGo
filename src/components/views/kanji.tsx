@@ -10,6 +10,8 @@ import { AudioButton } from '@/components/shared/audio-button'
 import { WritingCanvas, computeShapeSimilarity } from '@/components/lesson/canvas-write'
 import { StrokeOrderPlayer } from '@/components/kana/stroke-order-player'
 import { LoadingBlock, ErrorBlock, PageHeader } from '@/components/shared/widgets'
+import { SrsSaveButton } from '@/components/shared/srs-save-button'
+import { MasteryDots, SRS_STATUS_BADGE } from '@/components/shared/srs-ui'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -114,6 +116,37 @@ export function KanjiView({ character }: { character: string | null }) {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Ghi nhớ (SRS) — tiến độ lưu trong sổ ôn + CTA thêm nếu chưa có */}
+            <div className="rounded-2xl border bg-card p-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center justify-between">
+                Ghi nhớ (SRS)
+                {selected.srs && (
+                  <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-bold normal-case tracking-normal', SRS_STATUS_BADGE[selected.srs.state]?.cls)}>
+                    {SRS_STATUS_BADGE[selected.srs.state]?.label}
+                  </span>
+                )}
+              </h3>
+              {selected.srs ? (
+                <div className="flex items-center justify-between gap-3">
+                  <MasteryDots mastery={selected.srs.mastery} />
+                  <span className="text-[11px] text-muted-foreground">Ôn qua Ôn tập để củng cố chữ này</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground rounded-xl border border-dashed px-3 py-2">
+                    Chữ này chưa có trong sổ ôn — lưu lại để thuật toán lặp lại ngắt quãng nhắc bạn đúng lúc!
+                  </p>
+                  <SrsSaveButton
+                    key={selected.character}
+                    itemType="KANJI"
+                    itemKey={selected.character}
+                    invalidateKeys={['review', 'overview', 'kanji']}
+                    className="w-full rounded-xl"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Mnemonic */}

@@ -1520,6 +1520,8 @@ interface OverviewLite {
   level: { level: number; title: string; currentLevelXP: number; nextLevelXP: number; progress: number }
   streak: { currentStreak: number; todayXP: number; dailyGoalXP: number; goalMetToday: boolean; freezeCount: number }
   hearts: { enabled: boolean; hearts: number; maxHearts: number }
+  quests?: { id: string; title: string; progress: number; target: number; completed: boolean; rewardXP: number }[]
+  review?: { dueCount: number }
   content: {
     vocab: { total: number; learning: number; mastered: number }
     grammar: { total: number; learning: number; mastered: number }
@@ -1760,6 +1762,13 @@ function TodayHub({
       {/* Daily Challenge — thử thách 10 câu mỗi ngày, không tốn tim */}
       <DailyChallengeCard />
 
+      {/* Gợi ý việc tiếp theo — 1 hành động duy nhất, ưu tiên theo tác động */}
+      <NextActionCard
+        overview={overview}
+        hasNextNode={!!nextNode}
+        onContinue={onContinue}
+      />
+
       {/* Mini-stats nội dung (mobile — desktop xem ở sidebar) */}
       <div className="relative mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
         {contentStats.map((s) => (
@@ -1796,6 +1805,141 @@ interface ChallengeInfoDTO {
     recentCount: number
     olderCount: number
   }
+}
+
+/**
+ * Gợi ý "việc tiếp theo" trên hub — mỗi lần chỉ 1 hành động, ưu tiên theo
+ * tác động với người học: ôn đến hạn → thử thách → mục tiêu ngày → nhiệm vụ
+ * → tất cả xong (ăn mừng). Toàn bộ dữ liệu từ cache có sẵn, không thêm API.
+ */
+function NextActionCard({
+  overview,
+  hasNextNode,
+  onContinue,
+}: {
+  overview: OverviewLite | undefined
+  hasNextNode: boolean
+  onContinue: () => void
+}) {
+  const { navigate } = useHashRoute()
+  const { data: challenge } = useQuery({
+    queryKey: ['challenge'],
+    queryFn: () => api<ChallengeInfoDTO>('/api/challenge'),
+    staleTime: 60_000,
+  })
+
+  if (!overview) return null
+
+  type Action = {
+    key: string
+    eyebrow: string
+    title: string
+    desc: string
+    icon: typeof RefreshCw
+    color: string
+    bg: string
+    onClick: () => void
+  }
+
+  const due = overview.review?.dueCount ?? 0
+  const quest = overview.quests?.find((q) => !q.completed)
+  const remainingXP = Math.max(0, overview.streak.dailyGoalXP - overview.streak.todayXP)
+
+  let action: Action | null = null
+  if (due > 0) {
+    action = {
+      key: 'review',
+      eyebrow: 'Bước tiếp theo',
+      title: `Ôn tập ${due} mục đến hạn`,
+      desc: 'Thuật toán SRS nhắc đúng lúc — ôn ngay kẻo quên.',
+      icon: RefreshCw,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+      onClick: () => navigate('/review'),
+    }
+  } else if (challenge && !challenge.completed) {
+    action = {
+      key: 'challenge',
+      eyebrow: 'Bước tiếp theo',
+      title: 'Làm Thử thách hàng ngày',
+      desc: '10 câu · không tốn tim · +15 XP thưởng.',
+      icon: Zap,
+      color: 'text-warning',
+      bg: 'bg-warning/10',
+      onClick: () => navigate('/session/challenge'),
+    }
+  } else if (!overview.streak.goalMetToday && hasNextNode) {
+    action = {
+      key: 'goal',
+      eyebrow: 'Bước tiếp theo',
+      title: remainingXP > 0 ? `Học ải kế tiếp — còn ${remainingXP} XP nữa` : 'Học ải kế tiếp',
+      desc: nextNodeTitleFallback(),
+      icon: Rocket,
+      color: 'text-sakura',
+      bg: 'bg-sakura/10',
+      onClick: onContinue,
+    }
+  } else if (quest) {
+    action = {
+      key: 'quest',
+      eyebrow: 'Còn nhiệm vụ',
+      title: `“${quest.title}” — ${quest.progress}/${quest.target}`,
+      desc: `Hoàn thành nhận thêm +${quest.rewardXP} XP.`,
+      icon: Target,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+      onClick: () => navigate('/quests'),
+    }
+  } else if (!overview.streak.goalMetToday) {
+    action = {
+      key: 'goal-review',
+      eyebrow: 'Bước tiếp theo',
+      title: remainingXP > 0 ? `Còn ${remainingXP} XP nữa đạt mục tiêu` : 'Đạt mục tiêu hôm nay',
+      desc: 'Luyện ôn tập hoặc vào kho học để kiếm thêm XP.',
+      icon: Rocket,
+      color: 'text-sakura',
+      bg: 'bg-sakura/10',
+      onClick: () => navigate('/review'),
+    }
+  } else {
+    action = {
+      key: 'done',
+      eyebrow: 'Hoàn thành hôm nay',
+      title: 'Mọi việc đã xong — おめでとう!',
+      desc: 'Ngủ ngon nhé, mai thử thách mới đang chờ. Xem bạn đang hạng mấy?',
+      icon: Trophy,
+      color: 'text-warning',
+      bg: 'bg-warning/10',
+      onClick: () => navigate('/leaderboard'),
+    }
+  }
+
+  function nextNodeTitleFallback() {
+    return 'Mỗi ải là một bước nhỏ — giữ nhịp mỗi ngày!'
+  }
+
+  const Icon = action.icon
+  return (
+    <motion.button
+      type="button"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2, duration: 0.3 }}
+      onClick={action.onClick}
+      className="relative mb-3 w-full rounded-2xl border-2 border-primary/25 bg-gradient-to-r from-primary/[0.06] via-card to-sakura/[0.07] p-3.5 flex items-center gap-3 text-left overflow-hidden group outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all hover:border-primary/40 hover:shadow-sm"
+      aria-label={`${action.eyebrow}: ${action.title}`}
+    >
+      <span className={cn('h-10 w-10 shrink-0 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110', action.bg)} aria-hidden>
+        <Icon className={cn('h-5 w-5', action.color)} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{action.eyebrow}</span>
+        <span className="block text-sm font-extrabold leading-snug truncate">{action.title}</span>
+        <span className="block text-xs text-muted-foreground leading-snug truncate">{action.desc}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+    </motion.button>
+  )
 }
 
 /**

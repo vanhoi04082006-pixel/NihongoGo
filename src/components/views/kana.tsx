@@ -14,6 +14,7 @@ import { StrokeOrderPlayer } from '@/components/kana/stroke-order-player'
 import { useStrokeParts, strokeCountOf } from '@/components/kana/use-stroke-data'
 import { getWritingGuide } from '@/components/kana/writing-guide'
 import { setSfxEnabled, sfx } from '@/lib/sounds'
+import { SrsSaveButton } from '@/components/shared/srs-save-button'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -262,6 +263,7 @@ export function KanaView({ tab, charId }: { tab: string; charId: string | null }
           char={dialogChar}
           target={target}
           progress={progressMap.get(dialogChar.id)}
+          loggedIn={loggedIn}
           reducedMotion={reducedMotion}
           open
           onOpenChange={(v) => {
@@ -368,6 +370,7 @@ function KanaCharDialog({
   target,
   progress,
   reducedMotion,
+  loggedIn,
   open,
   onOpenChange,
 }: {
@@ -375,6 +378,7 @@ function KanaCharDialog({
   target: number
   progress?: KanaProgressItemDTO
   reducedMotion: boolean
+  loggedIn: boolean
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {
@@ -436,6 +440,21 @@ function KanaCharDialog({
                 </p>
               </div>
             </div>
+
+            {/* Sổ ôn tập — lưu ký tự vào SRS để được nhắc ôn đúng lúc */}
+            {loggedIn && (
+              <div className="rounded-2xl border bg-card p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Sổ ôn tập</p>
+                <SrsSaveButton
+                  key={char.character}
+                  itemType="KANA"
+                  itemKey={char.character}
+                  invalidateKeys={['review', 'overview']}
+                  savedText="Đã nằm trong sổ ôn — mở tab Ôn tập để luyện ngay"
+                  className="w-full rounded-xl"
+                />
+              </div>
+            )}
 
             {/* Hướng dẫn viết */}
             <div className="rounded-2xl border-2 border-dashed border-warning/40 bg-warning/5 p-4">

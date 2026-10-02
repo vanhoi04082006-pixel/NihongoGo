@@ -3,19 +3,17 @@
 /**
  * Dialog chi tiết từ vựng — dùng chung cho Vocabulary view và "Từ của ngày" ở Dashboard.
  * Hiển thị: từ + audio, nghĩa, ví dụ (2 tốc độ audio), tiến độ ghi nhớ SRS, CTA mở bài học.
- * Từ chưa có trong sổ ôn → nút "Thêm vào sổ ôn" (POST /api/srs/save, server xác thực).
+ * Từ chưa có trong sổ ôn → nút "Thêm vào sổ ôn" (SrsSaveButton dùng chung, server xác thực).
  */
-import { useEffect, useState } from 'react'
-import { BookmarkCheck, BookmarkPlus, BookOpen, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { BookmarkCheck, BookOpen } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AudioButton } from '@/components/shared/audio-button'
 import { SrsMemorySection, type SrsStatusInfo } from '@/components/shared/srs-ui'
+import { SrsSaveButton } from '@/components/shared/srs-save-button'
 import { useHashRoute } from '@/components/app/router'
-import { api } from '@/lib/client/api'
 
 export interface VocabDetailItem {
   id?: string
@@ -37,43 +35,12 @@ export function VocabDetailDialog({
   onClose: () => void
 }) {
   const { navigate } = useHashRoute()
-  const queryClient = useQueryClient()
   const item = detail?.item ?? null
   const srs = item?.srs
-  const [savedSrs, setSavedSrs] = useState<SrsStatusInfo | null>(null)
-  const [saving, setSaving] = useState(false)
+  // Kết quả lưu theo term — đổi từ không cần effect reset (state cũ vô hại)
+  const [savedMap, setSavedMap] = useState<Record<string, SrsStatusInfo>>({})
 
-  // Đổi từ → reset trạng thái lưu (đồng bộ lại từ dữ liệu cha)
-  useEffect(() => {
-    setSavedSrs(null)
-    setSaving(false)
-  }, [item?.term])
-
-  const effectiveSrs = savedSrs ?? srs ?? null
-
-  const saveToSrs = async () => {
-    if (!item) return
-    setSaving(true)
-    try {
-      const res = await api<SrsStatusInfo & { itemKey: string }>('/api/srs/save', {
-        method: 'POST',
-        json: { itemType: 'VOCAB', itemKey: item.term },
-      })
-      setSavedSrs(res)
-      toast.success(`Đã thêm “${item.term}” vào sổ ôn tập`, {
-        description: 'Từ này sẽ xuất hiện trong hàng đợi Ôn tập hôm nay.',
-        duration: 5000,
-      })
-      // Làm mới số liệu sổ ôn (review/overview/vocabulary) ở nền
-      void queryClient.invalidateQueries({ queryKey: ['review'] })
-      void queryClient.invalidateQueries({ queryKey: ['overview'] })
-      void queryClient.invalidateQueries({ queryKey: ['vocabulary'] })
-    } catch {
-      toast.error('Chưa lưu được vào sổ ôn — thử lại sau nhé!')
-    } finally {
-      setSaving(false)
-    }
-  }
+  const effectiveSrs = (item && savedMap[item.term]) || srs || null
 
   const srsKey = effectiveSrs ? (effectiveSrs.status ?? effectiveSrs.state ?? 'NEW') : null
   const showSaveCta = !effectiveSrs || (srsKey === 'NEW' && !effectiveSrs.nextReviewAt)
@@ -125,7 +92,7 @@ export function VocabDetailDialog({
             <SrsMemorySection
               srs={effectiveSrs}
               emptyText={
-                savedSrs
+                item && savedMap[item.term]
                   ? 'Đã lưu vào sổ ôn — chưa luyện lần nào. Mở tab Ôn tập để bắt đầu ghi nhớ!'
                   : 'Từ này chưa có trong lịch ôn — lưu vào sổ ôn để thuật toán lặp lại ngắt quãng nhắc bạn đúng lúc nhé!'
               }
@@ -133,20 +100,14 @@ export function VocabDetailDialog({
 
             {/* CTA lưu vào sổ ôn (chỉ khi chưa theo dõi) */}
             {showSaveCta ? (
-              <Button
-                variant="outline"
+              <SrsSaveButton
+                itemType="VOCAB"
+                itemKey={item.term}
+                invalidateKeys={['review', 'overview', 'vocabulary']}
+                onSaved={(res) => item && setSavedMap((m) => ({ ...m, [item.term]: res }))}
                 className="w-full rounded-xl"
-                onClick={saveToSrs}
-                disabled={saving}
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <BookmarkPlus className="h-4 w-4" aria-hidden />
-                )}
-                {saving ? 'Đang lưu…' : 'Thêm vào sổ ôn tập'}
-              </Button>
-            ) : savedSrs ? (
+              />
+            ) : savedMap[item?.term ?? ''] ? (
               <p className="flex items-center justify-center gap-1.5 text-xs font-semibold text-success" role="status">
                 <BookmarkCheck className="h-4 w-4" aria-hidden />
                 Đã nằm trong sổ ôn — mở tab Ôn tập để luyện ngay
