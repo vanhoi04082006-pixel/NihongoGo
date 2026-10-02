@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, Search } from 'lucide-react'
+import { BookOpen, Search, Sparkles, X } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { LoadingBlock, ErrorBlock, PageHeader, EmptyBlock } from '@/components/shared/widgets'
 import { AudioButton } from '@/components/shared/audio-button'
@@ -10,8 +10,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useHashRoute } from '@/components/app/router'
 import { katakanaToHiragana } from '@/lib/japanese'
+import { cn } from '@/lib/utils'
 
 /* --------------------------------- DTO types -------------------------------- */
 
@@ -40,6 +42,27 @@ interface GrammarResponseDTO {
   groups: GrammarGroupDTO[]
   total: number
   lessonCount: number
+}
+
+/* ---------------------- Structure formula (mô hình câu) --------------------- */
+
+const JP_PARTICLES = new Set(['は', 'が', 'を', 'に', 'で', 'と', 'も', 'へ', 'や', 'ね', 'よ', 'か', 'の', 'から', 'まで', 'より', 'こと', 'もの'])
+
+/** Tách title mẫu câu thành token để render công thức cấu trúc: A は B です → [A][は][B][です]. */
+function titleTokens(title: string): string[] {
+  return title
+    .replace(/[（(]/g, ' ( ')
+    .replace(/[）)]/g, ' ) ')
+    .split(/\s+/)
+    .filter(Boolean)
+}
+
+function tokenCls(t: string): string {
+  if (/^[A-Z]{1,3}$/.test(t)) return 'bg-primary/15 text-primary border-primary/30' // chỗ trống A/B/V
+  if (JP_PARTICLES.has(t)) return 'bg-sakura/15 text-sakura border-sakura/30' // trợ từ
+  if (/^(です|ます|でした|ません|ました|だ|な|の)$/.test(t)) return 'bg-success/15 text-success border-success/30' // đuôi câu
+  if (/^[（(]/.test(t) || /[）)]$/.test(t)) return 'bg-muted text-muted-foreground border-border' // phần tùy chọn
+  return 'bg-warning/10 text-warning border-warning/30' // động từ / tính từ
 }
 
 /* --------------------------------- Helpers ---------------------------------- */
@@ -85,6 +108,7 @@ export function GrammarView() {
 
   const [query, setQuery] = useState('')
   const [lessonFilter, setLessonFilter] = useState('all')
+  const [detail, setDetail] = useState<{ item: GrammarItemDTO; group: GrammarGroupDTO } | null>(null)
 
   const groups = useMemo(() => {
     if (!data) return []
@@ -180,7 +204,17 @@ export function GrammarView() {
                   {g.items.map((p) => (
                     <article
                       key={p.id}
-                      className="rounded-2xl border bg-card p-4 flex flex-col gap-2 min-w-0 transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setDetail({ item: p, group: g })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setDetail({ item: p, group: g })
+                        }
+                      }}
+                      aria-label={`Xem chi tiết mẫu câu ${p.title}`}
+                      className="group rounded-2xl border bg-card p-4 flex flex-col gap-2 min-w-0 transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <div className="flex items-start justify-between gap-2 min-w-0">
                         <p className="jp jp-serif text-lg font-bold leading-tight break-words min-w-0">{p.title}</p>
@@ -188,12 +222,19 @@ export function GrammarView() {
                           <AudioButton text={p.examples[0]?.ja || p.title} size="sm" labelSlow={false} />
                         </div>
                       </div>
-                      <p className="text-sm leading-relaxed break-words rounded-xl bg-muted/40 px-3 py-2 min-w-0">
+                      <div className="flex flex-wrap gap-1" aria-hidden>
+                        {titleTokens(p.title).slice(0, 8).map((t, i) => (
+                          <span key={i} className={cn('jp rounded-md border px-1.5 py-0.5 text-xs font-bold', tokenCls(t))}>
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-sm leading-relaxed break-words rounded-xl bg-muted/40 px-3 py-2 min-w-0 line-clamp-3">
                         {p.explanationVi}
                       </p>
                       {p.examples.length > 0 ? (
                         <div className="mt-auto rounded-xl bg-muted/40 px-3 py-1 min-w-0 divide-y divide-border/60">
-                          {p.examples.map((ex, i) => (
+                          {p.examples.slice(0, 1).map((ex, i) => (
                             <div key={i} className="py-2 min-w-0">
                               <p className="jp text-sm font-medium leading-relaxed break-words">{ex.ja}</p>
                               <p className="text-xs text-muted-foreground leading-snug mt-0.5 break-words">{ex.vi}</p>
@@ -201,6 +242,9 @@ export function GrammarView() {
                           ))}
                         </div>
                       ) : null}
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Sparkles className="h-3 w-3" aria-hidden /> Bấm để xem chi tiết + {p.examples.length} ví dụ
+                      </span>
                     </article>
                   ))}
                 </div>
@@ -209,6 +253,123 @@ export function GrammarView() {
           ))}
         </Accordion>
       )}
+
+      <GrammarDetailDialog detail={detail} onClose={() => setDetail(null)} />
     </div>
+  )
+}
+
+/* ---------------------------- Grammar detail dialog -------------------------- */
+
+function GrammarDetailDialog({
+  detail,
+  onClose,
+}: {
+  detail: { item: GrammarItemDTO; group: GrammarGroupDTO } | null
+  onClose: () => void
+}) {
+  const { navigate } = useHashRoute()
+  const open = !!detail
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-xl max-h-[88vh] overflow-y-auto nice-scroll">
+        {detail && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2.5">
+                <span className="jp jp-serif text-2xl">{detail.item.title}</span>
+                <AudioButton text={detail.item.examples[0]?.ja || detail.item.title} size="sm" labelSlow={false} />
+              </DialogTitle>
+              <DialogDescription>
+                {detail.group.lessonTitle} · mã {detail.item.code}
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Công thức cấu trúc — token màu theo vai trò */}
+            <section aria-label="Cấu trúc câu">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Cấu trúc</h4>
+              <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.04] p-4 flex flex-wrap items-center gap-1.5">
+                {titleTokens(detail.item.title).map((t, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      'jp rounded-lg border-2 px-2.5 py-1.5 font-bold text-sm sm:text-base shadow-sm',
+                      tokenCls(t),
+                    )}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                <span className="inline-block h-2 w-2 rounded-sm bg-primary/40 align-middle" /> chỗ trống (điền nội dung)
+                {' · '}
+                <span className="inline-block h-2 w-2 rounded-sm bg-sakura/40 align-middle" /> trợ từ
+                {' · '}
+                <span className="inline-block h-2 w-2 rounded-sm bg-success/40 align-middle" /> đuôi câu lịch sự
+                {' · '}
+                <span className="inline-block h-2 w-2 rounded-sm bg-warning/40 align-middle" /> động từ / tính từ
+              </p>
+            </section>
+
+            {/* Cách dùng */}
+            <section aria-label="Cách dùng">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Cách dùng</h4>
+              <p className="text-sm leading-relaxed rounded-2xl bg-muted/40 px-4 py-3">{detail.item.explanationVi}</p>
+            </section>
+
+            {/* Ví dụ — mỗi câu có audio riêng */}
+            {detail.item.examples.length > 0 && (
+              <section aria-label="Ví dụ">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Ví dụ ({detail.item.examples.length})
+                </h4>
+                <div className="space-y-2">
+                  {detail.item.examples.map((ex, i) => (
+                    <div key={i} className="rounded-2xl border bg-card p-3 flex items-start gap-3">
+                      <AudioButton text={ex.ja} size="sm" labelSlow={false} />
+                      <div className="min-w-0">
+                        <p className="jp text-sm font-semibold leading-relaxed break-words">{ex.ja}</p>
+                        <p className="text-xs text-muted-foreground leading-snug mt-0.5 break-words">{ex.vi}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Lỗi thường gặp — rút từ chính dấu hiệu trong giải thích (không bịa nội dung) */}
+            {/không (dùng|thể|được)|lưu ý|nhầm|sai|tránh|chỉ dùng|đừng/i.test(detail.item.explanationVi) && (
+              <section
+                aria-label="Lưu ý tránh lỗi"
+                className="rounded-2xl border-2 border-destructive/30 bg-destructive/[0.06] p-4"
+              >
+                <h4 className="text-xs font-bold uppercase tracking-wider text-destructive mb-1.5 flex items-center gap-1.5">
+                  <X className="h-3.5 w-3.5" aria-hidden /> Lưu ý tránh lỗi
+                </h4>
+                <p className="text-sm leading-relaxed">{detail.item.explanationVi}</p>
+              </section>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              {detail.group.lessonSlug && (
+                <Button
+                  onClick={() => {
+                    onClose()
+                    navigate(`/lessons/${detail.group.lessonSlug}`)
+                  }}
+                  className="flex-1 rounded-xl"
+                >
+                  <BookOpen className="h-4 w-4" aria-hidden /> Luyện trong bài học
+                </Button>
+              )}
+              <Button variant="outline" onClick={onClose} className="rounded-xl">
+                Đóng
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

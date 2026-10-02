@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Eye, GraduationCap, PenLine, RotateCcw, Trophy, X } from 'lucide-react'
+import { Check, Eye, GraduationCap, PenLine, RotateCcw, Star, Trophy, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, ApiClientError } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
@@ -34,6 +34,7 @@ interface KanjiDTO {
   radicals: string[]
   examples: KanjiExampleDTO[]
   mnemonicVi: string | null
+  srs?: { mastery: number; state: string } | null
 }
 
 export function KanjiView({ character }: { character: string | null }) {
@@ -48,6 +49,12 @@ export function KanjiView({ character }: { character: string | null }) {
   const all = data?.kanjiList ?? []
   const filtered = useMemo(() => (jlptFilter ? all.filter((k) => k.jlpt === jlptFilter) : all), [all, jlptFilter])
   const selected = character ? all.find((k) => k.character === character) : null
+  // Tiến độ bộ sưu tập: chữ đã từng luyện (có SRSItem) / thành thạo (mastery ≥ 4)
+  const stats = useMemo(() => {
+    const seen = all.filter((k) => k.srs)
+    const mastered = all.filter((k) => (k.srs?.mastery ?? 0) >= 4 || k.srs?.state === 'MASTERED')
+    return { seen: seen.length, mastered: mastered.length }
+  }, [all])
 
   if (isLoading) return <LoadingBlock label="Đang tải Kanji…" />
   if (error || !data) return <ErrorBlock message="Không tải được danh sách Kanji." onRetry={() => refetch()} />
@@ -150,7 +157,11 @@ export function KanjiView({ character }: { character: string | null }) {
       <PageHeader
         icon="BookText"
         title="Kanji — Chữ Hán"
-        sub={`${all.length} chữ Hán thông dụng theo trình độ JLPT. Bấm vào chữ để xem chi tiết, âm đọc và luyện viết.`}
+        sub={
+          stats.seen > 0
+            ? `${all.length} chữ Hán thông dụng theo trình độ JLPT · đã luyện ${stats.seen} · thành thạo ${stats.mastered} — bấm vào chữ để xem chi tiết, âm đọc và luyện viết.`
+            : `${all.length} chữ Hán thông dụng theo trình độ JLPT. Bấm vào chữ để xem chi tiết, âm đọc và luyện viết.`
+        }
         actions={
           <div className="flex items-center gap-2">
             <div className="flex rounded-xl border bg-card p-1" role="group" aria-label="Lọc theo JLPT">
@@ -178,20 +189,46 @@ export function KanjiView({ character }: { character: string | null }) {
       />
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-2.5">
-        {filtered.map((k) => (
-          <button
-            key={k.id}
-            onClick={() => navigate(`/kanji/${encodeURIComponent(k.character)}`)}
-            className="rounded-xl border bg-card p-3 text-center transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <p className="jp jp-serif text-4xl font-bold leading-none mb-1.5">{k.character}</p>
-            <p className="text-xs font-semibold text-muted-foreground line-clamp-2 leading-tight min-h-8">{k.meaningVi}</p>
-            <div className="flex items-center justify-center gap-1 mt-1.5">
-              <Badge variant="secondary" className="text-[10px] px-1.5">N{k.jlpt}</Badge>
-              <span className="text-[10px] text-muted-foreground">{k.strokeCount} nét</span>
-            </div>
-          </button>
-        ))}
+        {filtered.map((k) => {
+          const mastery = k.srs?.mastery ?? 0
+          const mastered = mastery >= 4 || k.srs?.state === 'MASTERED'
+          const seen = !!k.srs
+          return (
+            <button
+              key={k.id}
+              onClick={() => navigate(`/kanji/${encodeURIComponent(k.character)}`)}
+              aria-label={`Kanji ${k.character} — ${k.meaningVi}${seen ? `, mức nhớ ${mastery}/5` : ', chưa luyện'}`}
+              className={cn(
+                'relative rounded-xl border bg-card p-3 text-center transition-all hover:shadow-md hover:-translate-y-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                mastered ? 'border-warning/60 bg-warning/[0.06]' : seen ? 'border-primary/40' : 'hover:border-primary/40',
+              )}
+            >
+              <p className="jp jp-serif text-4xl font-bold leading-none mb-1.5">{k.character}</p>
+              <p className="text-xs font-semibold text-muted-foreground line-clamp-2 leading-tight min-h-8">{k.meaningVi}</p>
+              <div className="flex items-center justify-center gap-1 mt-1.5">
+                <Badge variant="secondary" className="text-[10px] px-1.5">N{k.jlpt}</Badge>
+                <span className="text-[10px] text-muted-foreground">{k.strokeCount} nét</span>
+              </div>
+              {/* Mastery dots — tiến độ nhớ từng chữ (0–5) */}
+              <div className="mt-1.5 flex items-center justify-center gap-0.5" aria-hidden>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      'h-1.5 rounded-full transition-colors',
+                      i < mastery ? (mastered ? 'w-3 bg-warning' : 'w-2 bg-primary') : 'w-2 bg-muted',
+                    )}
+                  />
+                ))}
+              </div>
+              {mastered && (
+                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-warning text-white flex items-center justify-center shadow-sm" title="Đã thành thạo">
+                  <Star className="h-3 w-3 fill-current" aria-hidden />
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       <KanjiPracticeDialog open={practiceOpen} onOpenChange={setPracticeOpen} jlptFilter={jlptFilter} />

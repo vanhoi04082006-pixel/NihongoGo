@@ -13,7 +13,7 @@ import { api } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
 import { useOverview } from '@/components/app/use-overview'
 import { DynamicIcon } from '@/components/shared/icon'
-import { LoadingBlock, ErrorBlock, XPBadge, LeagueBadge } from '@/components/shared/widgets'
+import { ErrorBlock, XPBadge, LeagueBadge } from '@/components/shared/widgets'
 import { AudioButton } from '@/components/shared/audio-button'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -228,7 +228,7 @@ export function LearnView() {
   // Node khả dụng kế tiếp cho CTA "Tiếp tục học" (trước early-return để hợp rules-of-hooks)
   const nextNode = useMemo(() => (data ? findNextNode(data) : null), [data])
 
-  if (isLoading) return <LoadingBlock label="Đang mở Learning Path…" />
+  if (isLoading) return <LearnSkeleton />
   if (error || !data) return <ErrorBlock message="Không tải được hành trình học." onRetry={() => refetch()} />
 
   /* ---------- Tính phần đang xem (Duolingo: 1 phần/lần) ---------- */
@@ -1695,5 +1695,67 @@ function TodayHub({
         ))}
       </div>
     </motion.section>
+  )
+}
+
+/* ------------------------------ Learn skeleton ------------------------------- */
+
+/** Skeleton tối ưu CLS: mô phỏng đúng layout hub + chips + path nodes với shimmer. */
+function LearnSkeleton() {
+  return (
+    <div className="grid xl:grid-cols-[1fr_300px] gap-6 items-start" aria-busy="true" aria-label="Đang tải lộ trình học">
+      <div className="min-w-0">
+        {/* Hub */}
+        <div className="rounded-3xl border-2 border-border/60 p-5 sm:p-6 mb-6">
+          <div className="shimmer h-3 w-40 rounded-full mb-3" />
+          <div className="shimmer h-7 w-3/4 rounded-lg mb-2" />
+          <div className="shimmer h-7 w-1/2 rounded-lg mb-4" />
+          <div className="flex gap-2 mb-5">
+            {[64, 56, 60, 64].map((w, i) => (
+              <div key={i} className="shimmer h-8 rounded-full" style={{ width: w }} />
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <div className="shimmer h-12 flex-1 max-w-xs rounded-2xl" />
+            <div className="shimmer h-12 w-24 rounded-full" />
+          </div>
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="shimmer h-12 rounded-xl" />
+            ))}
+          </div>
+        </div>
+        {/* Course selector */}
+        <div className="shimmer h-14 w-72 rounded-2xl mb-6" />
+        {/* Section chips */}
+        <div className="flex gap-2 mb-5">
+          {[110, 96, 120, 88].map((w, i) => (
+            <div key={i} className="shimmer h-9 rounded-full" style={{ width: w }} />
+          ))}
+        </div>
+        {/* Path nodes — so le đúng nhịp zigzag */}
+        <div className="relative" style={{ height: 5 * 118 }}>
+          {[0, 1, 2, 3, 4].map((i) => {
+            const off = [0, -1, 0, 1][i % 4]! * 40
+            return (
+              <div
+                key={i}
+                className="absolute left-1/2 flex flex-col items-center"
+                style={{ top: i * 118, transform: `translateX(calc(-50% + ${off}px))` }}
+              >
+                <div className="shimmer h-20 w-20 rounded-full" />
+                <div className="shimmer h-3 w-28 rounded-full mt-2" />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      {/* Sidebar */}
+      <div className="hidden xl:flex flex-col gap-4">
+        {[104, 128, 96].map((h, i) => (
+          <div key={i} className="shimmer rounded-2xl" style={{ height: h }} />
+        ))}
+      </div>
+    </div>
   )
 }
