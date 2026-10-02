@@ -473,18 +473,18 @@ function CourseSelector({
 }) {
   const badge = (c: { titleJa: string | null }) => (c.titleJa ? Array.from(c.titleJa).slice(0, 2).join('') : '日')
   return (
-    <div className="flex items-center gap-3 mb-5">
+    <div className="flex items-center gap-3 mb-5 min-w-0">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="group inline-flex items-center gap-3 h-14 rounded-2xl border-2 border-border bg-card pr-4 pl-2.5 text-left transition-all hover:border-primary/40 hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="group inline-flex items-center gap-3 h-14 rounded-2xl border-2 border-border bg-card pr-4 pl-2.5 text-left transition-all hover:border-primary/40 hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring max-w-full min-w-0"
             aria-label="Chọn khóa học"
           >
             <span className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-primary/20 to-sakura/20 border border-primary/20 flex items-center justify-center jp text-lg font-black text-primary" aria-hidden>
               {badge(current)}
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
               <span className="block text-sm font-extrabold leading-tight truncate">{current.title}</span>
               <span className="block text-[11px] text-muted-foreground truncate">
                 {current.titleJa ? `${current.titleJa} · ` : ''}

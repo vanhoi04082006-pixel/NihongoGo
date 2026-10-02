@@ -1,7 +1,7 @@
 /**
  * NihongoGo — Irodori A1 seeder (Task 27) — chạy: bun prisma/seed-irodori.ts
  *
- * Khoá "Irodori A1 — Tiếng Nhật sinh tồn" (12 bài, 3 section, PUBLISHED)
+ * Khoá "Irodori A1 — Tiếng Nhật sinh tồn" (18 bài, 4 section, PUBLISHED)
  * + patch N5 Lesson 1 (kana-hiragana) thêm node SPEAKING (k9) & READING (k10).
  *
  * IDEMPOTENT (chạy lại không nhân bản):
@@ -36,7 +36,7 @@ const IRODORI_COURSE = {
   title: 'Irodori A1 — Tiếng Nhật sinh tồn',
   titleJa: 'いろどり A1',
   description:
-    '12 bài tiếng Nhật sinh tồn cấp A1: chào hỏi, giới thiệu, mua sắm, ăn uống, chỉ đường, mời mọc — nội dung gốc, học xong giao tiếp được ngay.',
+    '18 bài tiếng Nhật sinh tồn cấp A1: chào hỏi, giới thiệu, mua sắm, ăn uống, chỉ đường, tàu điện, nhờ vả, kế hoạch — nội dung gốc, học xong tự tin sống ở Nhật.',
   order: 2,
   status: 'PUBLISHED',
 }

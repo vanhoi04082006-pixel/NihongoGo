@@ -1,6 +1,6 @@
 /**
  * NihongoGo — Irodori A1 · Bài 12: そうまとめ (Tổng kết A1).
- * Bài CUỐI khoá: KHÔNG dạy mẫu mới — 3 "grammar point" là 3 NHÓM CHỐT
+ * Tổng kết GIỮA khoá (bài 13–18 là chặng phố xá & kế hoạch): KHÔNG dạy mẫu mới — 3 "grammar point" là 3 NHÓM CHỐT
  * KIẾN THỨC sinh tồn (xã giao / mua sắm & ăn uống / nhờ vả).
  * Ngữ pháp sử dụng toàn bộ phạm vi bài 1–11. Nội dung GỐC — không sao chép
  * dialogue/ví dụ/bài tập từ bất kỳ giáo trình có bản quyền nào.
@@ -13,7 +13,7 @@ export const irodori12: IrodoriLesson = {
   slug: 'irodori-12',
   title: 'そうまとめ — Tổng kết A1',
   titleJa: 'いろどり A1 そうまとめ',
-  description: 'Chốt lại toàn bộ tiếng Nhật sinh tồn A1: chào hỏi, giới thiệu, mua sắm, ăn uống, hỏi đường — và các câu "cứu nguy" khi chưa hiểu.',
+  description: 'Tổng kết nửa đầu khoá A1: chào hỏi, giới thiệu, mua sắm, ăn uống, chỉ đường — và các câu "cứu nguy" khi chưa hiểu. Chặng tiếp theo: nhà ga & kế hoạch.',
   learningObjectives: [
     'Tự đánh giá bộ câu sinh tồn đã chắc chưa',
     'Ôn chào hỏi & giới thiệu trong tình huống thật',

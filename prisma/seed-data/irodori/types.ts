@@ -1,14 +1,14 @@
 /**
  * NihongoGo — Irodori A1 authoring contracts (Task 27).
  *
- * Khoá "Irodori A1 — Tiếng Nhật sinh tồn": 12 bài, nội dung GỐC 100%
+ * Khoá "Irodori A1 — Tiếng Nhật sinh tồn": 18 bài, nội dung GỐC 100%
  * (chỉ tham chiếu chủ đề giao tiếp sinh tồn cấp A1 — tri thức phổ quát),
  * KHÔNG sao chép dialogue/ví dụ/bài tập từ bất kỳ giáo trình có bản quyền.
  * Tác giả viết data gọn theo các type dưới đây; `generate.ts` deterministic-
  * expand thành SeedLesson đầy đủ (~70–80 câu, 13 node, đủ 10 kỹ năng).
  *
  * Ràng buộc biên soạn (kiểm bởi sanity script trước khi seed):
- * - Vocabulary: 12–20 từ/bài; term DUY NHẤT trong toàn bộ 12 bài irodori.
+ * - Vocabulary: 12–20 từ/bài; term DUY NHẤT trong toàn bộ 18 bài irodori.
  * - Grammar: 2–3 điểm/bài; code `i{order}-...` duy nhất toàn cục.
  * - exampleJa phải chứa term (hoặc reading nếu term có kanji).
  * - tokens (translatePairs/wordBank) ghép lại = ja bỏ khoảng trắng và 。、.
@@ -48,9 +48,9 @@ export interface IrodoriWordBank {
 }
 
 export interface IrodoriLesson {
-  /** 1–12 */
+  /** 1–18 */
   order: number
-  /** irodori-1 … irodori-12 */
+  /** irodori-1 … irodori-18 */
   slug: string
   title: string
   titleJa: string

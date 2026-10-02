@@ -671,8 +671,9 @@ export function LessonPlayer({
               {question.data.kind === 'writing' && <WritingRenderer {...rendererProps} />}
             </div>
 
-            {/* Bottom action bar */}
-            <div className="sticky bottom-0 -mx-3 sm:-mx-6 px-3 sm:px-6 py-4 bg-background/95 backdrop-blur border-t mt-6">
+            {/* Bottom action bar — z-20 ĐÈ TRÊN renderer tiles (z-[2]) nhưng DƯỚI header (z-30);
+                nền đặc để tiles cuộn bên dưới không hở qua, shadow tách khối rõ ràng */}
+            <div className="sticky bottom-0 z-20 -mx-3 sm:-mx-6 px-3 sm:px-6 pt-4 pb-3 bg-background border-t mt-6 shadow-[0_-6px_20px_rgba(0,0,0,0.06)]">
               {phase === 'question' ? (
                 <Button
                   onClick={handleSubmit}
@@ -732,7 +733,12 @@ export function LessonPlayer({
                 </div>
               )}
               <p className="text-center text-xs text-muted-foreground/90 mt-2">
-                Mẹo: <kbd className="px-1.5 py-0.5 rounded-md border bg-muted font-sans font-semibold">1</kbd>–<kbd className="px-1.5 py-0.5 rounded-md border bg-muted font-sans font-semibold">4</kbd> chọn nhanh · <kbd className="px-1.5 py-0.5 rounded-md border bg-muted font-sans font-semibold">Enter</kbd> kiểm tra / tiếp tục
+                <span className="sm:hidden">
+                  <kbd className="px-1.5 py-0.5 rounded-md border bg-muted font-sans font-semibold">Enter</kbd> kiểm tra / tiếp tục
+                </span>
+                <span className="hidden sm:inline">
+                  Mẹo: <kbd className="px-1.5 py-0.5 rounded-md border bg-muted font-sans font-semibold">1</kbd>–<kbd className="px-1.5 py-0.5 rounded-md border bg-muted font-sans font-semibold">4</kbd> chọn nhanh · <kbd className="px-1.5 py-0.5 rounded-md border bg-muted font-sans font-semibold">Enter</kbd> kiểm tra / tiếp tục
+                </span>
               </p>
             </div>
           </div>
