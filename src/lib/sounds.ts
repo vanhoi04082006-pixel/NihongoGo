@@ -90,4 +90,12 @@ export const sfx = {
     tone(1244.51, 0, 0.09, 'sine', 0.1)
     tone(830.61, 0.07, 0.16, 'sine', 0.08)
   },
+  /** Lên cấp — fanfare thắng lợi 4 nốt tăng dần + nốt ngân dài */
+  levelUp() {
+    tone(523.25, 0, 0.13, 'triangle', 0.13)
+    tone(659.25, 0.12, 0.13, 'triangle', 0.13)
+    tone(783.99, 0.24, 0.13, 'triangle', 0.13)
+    dyad(1046.5, 1567.98, 0.36, 0.5, 0.17)
+    tone(2093, 0.42, 0.45, 'sine', 0.07)
+  },
 }

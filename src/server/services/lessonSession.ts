@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { badRequest, conflict, notFound } from '@/lib/api'
 import { gradeAnswer, getPassageSubQuestions, type AnswerPayload, type QuestionDataShape, type CorrectShape, type ResolvedQuestion } from '@/server/domain/grading'
-import { computeLessonXp } from '@/server/domain/xp'
+import { computeLessonXp, levelFromXp } from '@/server/domain/xp'
 import { transcribeAudio } from './speech'
 import { getHeartConfig } from './config'
 import { getHearts, consumeHeart, grantHeart } from './hearts'
@@ -662,6 +662,8 @@ export interface CompleteSummary {
   newAchievements: { code: string; title: string; description: string; icon: string; tier: string; xpReward: number }[]
   streak: { currentStreak: number; longestStreak: number; todayXP: number; dailyGoalXP: number; goalMetToday: boolean }
   totalXP: number
+  /** Lên cấp trong phiên này (null nếu không) — đã tính cả XP thành tựu. */
+  levelUp: { from: number; to: number; title: string } | null
 }
 
 export async function completeSession(userId: string, sessionId: string): Promise<CompleteSummary> {
@@ -837,6 +839,10 @@ export async function completeSession(userId: string, sessionId: string): Promis
     if (vocabCount > 0) await bumpQuestProgress(userId, 'VOCAB_REVIEWS', vocabCount)
   }
 
+  // Mốc level trước khi cộng XP của phiên này — để phát hiện lên cấp ở cuối request
+  const progressBefore = await db.userProgress.findUnique({ where: { userId }, select: { totalXP: true } })
+  const levelBefore = levelFromXp(progressBefore?.totalXP ?? 0)
+
   // XP
   const xpResult = computeLessonXp({
     correctCount: correct,
@@ -887,6 +893,15 @@ export async function completeSession(userId: string, sessionId: string): Promis
   })
 
   const newAchievements = await checkAchievements(userId)
+
+  // Phát hiện lên cấp — đọc SAU khi đã cộng cả XP bài học lẫn XP thành tựu
+  const progressAfter = await db.userProgress.findUnique({ where: { userId }, select: { totalXP: true } })
+  const levelAfter = levelFromXp(progressAfter?.totalXP ?? progressBefore?.totalXP ?? 0)
+  const levelUp =
+    levelAfter.level > levelBefore.level
+      ? { from: levelBefore.level, to: levelAfter.level, title: levelAfter.title }
+      : null
+
   const streak = await getStreakInfo(userId)
   await track(mode === 'REVIEW' ? 'review_completed' : 'lesson_completed', userId, {
     sessionId: session.id,
@@ -917,6 +932,7 @@ export async function completeSession(userId: string, sessionId: string): Promis
     newAchievements,
     streak,
     totalXP,
+    levelUp,
   }
 }
 

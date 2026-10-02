@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import {
   Lock, Check, Star, Sparkles, ArrowRight, RefreshCw, Trophy, Target, Flame, Heart, Snowflake,
   Rocket, CalendarDays, BookMarked, ChevronUp, ChevronDown, ChevronRight, Map as MapIcon, Zap, GraduationCap, Award,
-  Maximize2,
+  Maximize2, BookOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/client/api'
@@ -1242,6 +1242,7 @@ function PathNode({
               }
             }}
             disabled={isLocked}
+            aria-current={isCurrent ? 'step' : undefined}
             aria-label={`${node.title} — ${isLocked ? 'đang khóa' : isDone ? 'đã hoàn thành' : 'sẵn sàng'}`}
             className={cn(
               'relative rounded-full flex flex-col items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -1638,11 +1639,19 @@ function TodayHub({
               {overview?.hearts.enabled ? `${overview.hearts.hearts}/${overview.hearts.maxHearts}` : '∞'}
               <span className="sr-only">tim</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 text-success px-2.5 py-1 text-sm font-bold tabular-nums">
-              <Check className="h-4 w-4" aria-hidden />
-              {courseStats.lessonsCompleted}/{courseStats.totalLessons}
-              <span className="sr-only">ải đã vượt trong khóa</span>
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 text-success px-2.5 py-1 text-sm font-bold tabular-nums">
+                  <BookOpen className="h-4 w-4" aria-hidden />
+                  {courseStats.lessonsCompleted}/{courseStats.totalLessons}
+                  <span className="sr-only">bài đã hoàn thành trong khóa</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="font-bold">Tiến trình toàn khóa</p>
+                <p className="text-xs">Đã hoàn thành {courseStats.lessonsCompleted} trên {courseStats.totalLessons} bài học.</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* CTA tiếp tục học — 2 dòng (eyebrow + tiêu đề ải); xếp dọc khi cột hẹp (@container) */}

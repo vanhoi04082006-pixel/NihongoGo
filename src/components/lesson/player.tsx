@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Check, Heart, X, Zap, Flame, Snowflake, Trophy, RefreshCw, ChevronRight, Timer, Target, Star, Rocket, LockOpen, Wrench } from 'lucide-react'
+import { Check, Heart, X, Zap, Flame, Snowflake, Trophy, RefreshCw, ChevronRight, Timer, Target, Star, Rocket, LockOpen, Wrench, Sparkles, MoveRight } from 'lucide-react'
 import { api, ApiClientError } from '@/lib/client/api'
 import { setSfxEnabled, sfx } from '@/lib/sounds'
 import { useHashRoute } from '@/components/app/router'
@@ -100,6 +100,7 @@ interface CompleteSummary {
   streak: { currentStreak: number; longestStreak: number; todayXP: number; dailyGoalXP: number; goalMetToday: boolean }
   freezesUsed: number
   totalXP: number
+  levelUp: { from: number; to: number; title: string } | null
   jumpApplied: boolean
   jumpLessonsCompleted: number
   jumpNodesCompleted: number
@@ -341,6 +342,15 @@ export function LessonPlayer({
             })
           }, 500 + i * 700)
         })
+        if (res.levelUp) {
+          sfx.levelUp()
+          window.setTimeout(() => {
+            toast.success(`Lên cấp ${res.levelUp!.to}!`, {
+              description: `Danh hiệu mới: ${res.levelUp!.title}`,
+              icon: <Sparkles className="h-4 w-4" />,
+            })
+          }, 1500)
+        }
         qc.invalidateQueries({ queryKey: ['overview'] })
         qc.invalidateQueries({ queryKey: ['learn'] })
         qc.invalidateQueries({ queryKey: ['quests'] })
@@ -781,6 +791,57 @@ function CompletionScreen({
                 : `Độ chính xác ${summary.accuracy}% — cần thêm chút nữa để qua ải này`}
         </p>
       </motion.div>
+
+      {/* Lên cấp — banner chúc mừng nổi bật nhất trên màn hình */}
+      {summary.levelUp && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.75, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ delay: 0.35, type: 'spring', stiffness: 210, damping: 15 }}
+          className="relative w-full max-w-xl overflow-hidden rounded-3xl border-2 border-warning/60 bg-gradient-to-br from-warning/15 via-sakura/10 to-primary/10 p-5 text-center shadow-lg"
+          role="status"
+        >
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute -top-8 -left-8 h-28 w-28 rounded-full bg-warning/20 blur-2xl"
+            animate={{ scale: [1, 1.25, 1], opacity: [0.6, 0.9, 0.6] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-10 -right-6 h-32 w-32 rounded-full bg-primary/15 blur-2xl"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.85, 0.5] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
+          />
+          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-warning">
+            <Sparkles className="mr-1 inline h-3.5 w-3.5" aria-hidden /> Lên cấp <Sparkles className="ml-1 inline h-3.5 w-3.5" aria-hidden />
+          </p>
+          <div className="mt-2.5 flex items-center justify-center gap-3 sm:gap-4">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-muted-foreground/20 bg-card text-xl font-black tabular-nums text-muted-foreground/70">
+              {summary.levelUp.from}
+            </span>
+            <motion.span
+              initial={{ x: -6, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              aria-hidden
+            >
+              <MoveRight className="h-7 w-7 text-warning" />
+            </motion.span>
+            <motion.span
+              initial={{ scale: 1.8, rotate: -8 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.75, type: 'spring', stiffness: 240, damping: 13 }}
+              className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-warning to-sakura text-white shadow-lg shadow-warning/30"
+            >
+              <span className="text-3xl font-black tabular-nums">{summary.levelUp.to}</span>
+              <span className="sr-only">Cấp {summary.levelUp.to}</span>
+            </motion.span>
+          </div>
+          <p className="jp mt-3 text-lg font-extrabold">{summary.levelUp.title}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Bạn đã mạnh hơn — tiếp tục giữ đà này nhé!</p>
+        </motion.div>
+      )}
 
       {/* JUMP: banner mở khóa hàng loạt */}
       {isJump && summary.jumpApplied && (

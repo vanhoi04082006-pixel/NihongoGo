@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { keepPreviousData } from '@tanstack/react-query'
 import {
+  Award,
   BookMarked,
   BookText,
   CornerDownLeft,
@@ -15,7 +16,10 @@ import {
   Target,
   Trophy,
   Type,
+  UserRound,
   Volume2,
+  Wrench,
+  Zap,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
@@ -93,13 +97,17 @@ interface SearchResponseDTO {
 
 const QUICK_LINKS = [
   { path: '/', label: 'Học theo hành trình', icon: Sparkles, hint: 'Trang chủ' },
+  { path: '/session/challenge', label: 'Thử thách hàng ngày', icon: Zap, hint: '10 câu · +15 XP thưởng · 1 lần/ngày' },
   { path: '/kana', label: 'Bảng Kana', icon: Languages, hint: 'Hiragana · Katakana' },
   { path: '/kanji', label: 'Kanji', icon: BookText, hint: '119 chữ' },
   { path: '/vocabulary', label: 'Từ điển từ vựng', icon: BookMarked, hint: 'Tra cứu · có âm thanh' },
   { path: '/grammar', label: 'Ngữ pháp A-Z', icon: PenLine, hint: '137 mẫu · ví dụ minh họa' },
   { path: '/review', label: 'Ôn tập SRS', icon: RefreshCw, hint: 'Đến hạn hôm nay' },
+  { path: '/session/mistakes', label: 'Luyện lỗi sai', icon: Wrench, hint: 'Sửa lại các câu từng sai' },
   { path: '/quests', label: 'Nhiệm vụ hằng ngày', icon: Target, hint: 'Làm mới mỗi ngày' },
+  { path: '/achievements', label: 'Thành tích', icon: Award, hint: 'Bộ sưu tập huy chương' },
   { path: '/leaderboard', label: 'Bảng xếp hạng', icon: Trophy, hint: 'Giải tuần này' },
+  { path: '/profile', label: 'Hồ sơ của tôi', icon: UserRound, hint: 'Thống kê · biểu đồ XP' },
 ]
 
 /* ------------------------------- Trigger button ----------------------------- */

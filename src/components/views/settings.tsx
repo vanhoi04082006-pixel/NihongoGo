@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Download, Smartphone, Share, PlusSquare } from 'lucide-react'
+import { Download, Smartphone, Share, PlusSquare, DatabaseBackup, RefreshCw } from 'lucide-react'
 import { api, ApiClientError } from '@/lib/client/api'
 import { useHashRoute } from '@/components/app/router'
 import { useAuth, useAuthActions } from '@/components/app/use-auth'
@@ -81,6 +81,32 @@ export function SettingsView() {
     if (choice.outcome === 'accepted') {
       toast.success('Đã cài NihongoGo lên thiết bị!')
       setInstallEvent(null)
+    }
+  }
+
+  const [exporting, setExporting] = useState(false)
+  const exportData = async () => {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/profile/export', { credentials: 'same-origin' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const match = /filename="?([^";]+)"?/.exec(disposition)
+      const filename = match?.[1] ?? `nihongogo-backup-${new Date().toISOString().slice(0, 10)}.json`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success('Đã tải dữ liệu học tập')
+    } catch {
+      toast.error('Không tải được dữ liệu — thử lại sau')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -293,6 +319,22 @@ export function SettingsView() {
             )}
           </>
         )}
+      </section>
+
+      {/* Dữ liệu */}
+      <section className="rounded-2xl border bg-card p-5 mb-4 space-y-3" aria-label="Dữ liệu học tập">
+        <h2 className="font-bold">Dữ liệu của bạn</h2>
+        <p className="text-sm text-muted-foreground">
+          Tải toàn bộ tiến trình học — XP, chuỗi ngày, SRS, thành tích, lịch sử phiên — dưới dạng file JSON để lưu trữ
+          hoặc chuyển sang thiết bị khác. Dữ liệu thuộc về riêng bạn, tải bất cứ lúc nào.
+        </p>
+        <Button variant="outline" className="rounded-xl" onClick={exportData} disabled={exporting} aria-describedby="export-hint">
+          {exporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
+          {exporting ? 'Đang chuẩn bị…' : 'Tải dữ liệu học tập (JSON)'}
+        </Button>
+        <p id="export-hint" className="text-xs text-muted-foreground">
+          File chứa: hồ sơ, tiến trình bài học, SRS (kana · kanji · từ vựng · ngữ pháp), thành tích đã mở, 500 giao dịch XP gần nhất.
+        </p>
       </section>
 
       {/* Account */}
