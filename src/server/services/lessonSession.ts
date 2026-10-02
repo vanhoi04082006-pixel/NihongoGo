@@ -7,7 +7,7 @@ import { getHeartConfig } from './config'
 import { getHearts, consumeHeart, grantHeart } from './hearts'
 import { recordMistake, resolveMistakeIfExists } from './mistakes'
 import { ensureSrsItem, recordAnswerSrs } from './srs'
-import { bumpQuestProgress, type QuestCompletedInfo } from './quests'
+import { bumpQuestProgress, getQuestProgressSnapshot, type QuestCompletedInfo, type QuestProgressInfo } from './quests'
 import { awardXp } from './xp'
 import { checkAchievements } from './achievements'
 import { getStreakInfo } from './streak'
@@ -323,7 +323,7 @@ async function createSessionInternal(
     },
   })
   await track('lesson_started', userId, { nodeId, mode, title, questions: entries.length })
-  const payload = await buildPayload(session.id, state, mode, title, nodeId)
+  const payload = await buildPayload(session.id, state, mode, title, nodeId, userId)
   return payload
 }
 
@@ -390,7 +390,14 @@ function sanitizeQuestion(q: ResolvedQuestion): Record<string, unknown> {
   return { id: q.id, type: q.type, prompt: q.prompt, data }
 }
 
-async function buildPayload(sessionId: string, state: SessionState, mode: SessionMode, title: string, nodeId: string | null) {
+async function buildPayload(
+  sessionId: string,
+  state: SessionState,
+  mode: SessionMode,
+  title: string,
+  nodeId: string | null,
+  userId?: string
+) {
   const entry = state.entries[state.index]
   let question: Record<string, unknown> | null = null
   let passage: Record<string, unknown> | null = null
@@ -408,6 +415,8 @@ async function buildPayload(sessionId: string, state: SessionState, mode: Sessio
       }
     }
   }
+  // Snapshot nhiệm vụ hôm nay — chip tiến độ trực tiếp trong lesson header
+  const questProgress = userId ? await getQuestProgressSnapshot(userId) : []
   return {
     session: {
       id: sessionId,
@@ -420,6 +429,7 @@ async function buildPayload(sessionId: string, state: SessionState, mode: Sessio
       combo: state.combo,
       status: 'ACTIVE',
     },
+    questProgress,
     question,
     passage,
   }
@@ -447,7 +457,7 @@ export async function getSession(userId: string, sessionId: string) {
   }
   const state = parseState(session.state)
   const node = session.nodeId ? await db.lessonNode.findUnique({ where: { id: session.nodeId }, select: { title: true } }) : null
-  return buildPayload(session.id, state, session.sessionType as SessionMode, node?.title ?? 'Luyện tập', session.nodeId)
+  return buildPayload(session.id, state, session.sessionType as SessionMode, node?.title ?? 'Luyện tập', session.nodeId, userId)
 }
 
 /* ------------------------------- Submit answer ----------------------------- */
@@ -460,6 +470,8 @@ export interface AnswerFeedback {
   transcription: string | null
   /** Quest hằng ngày vừa hoàn thành nhờ câu trả lời này (UI chúc mừng ngay). */
   questsCompleted: QuestCompletedInfo[]
+  /** Snapshot tiến độ các nhiệm vụ hôm nay sau câu trả lời này (chip header trực tiếp). */
+  questProgress: QuestProgressInfo[]
   session: {
     id: string
     index: number
@@ -592,6 +604,8 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
   if (result.isCorrect) {
     questCompletions = await bumpQuestProgress(userId, 'CORRECT_ANSWERS', 1)
   }
+  // Snapshot nhiệm vụ sau bump — chip tiến độ trực tiếp trên lesson header
+  const questProgress = await getQuestProgressSnapshot(userId)
   await track(result.isCorrect ? 'question_answered' : 'question_wrong', userId, {
     sessionId: session.id,
     type: resolved.type,
@@ -623,6 +637,7 @@ export async function submitAnswer(userId: string, sessionId: string, answer: An
     score: result.score ?? null,
     transcription: enrichedAnswer.transcription ?? null,
     questsCompleted: questCompletions,
+    questProgress,
     session: {
       id: session.id,
       index: state.index,

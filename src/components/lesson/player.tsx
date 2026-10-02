@@ -57,6 +57,7 @@ interface SessionInfo {
 
 interface SessionPayload {
   session: SessionInfo
+  questProgress?: QuestProgressUI[]
   question: ClientQuestion | null
   passage: ClientQuestion | null
 }
@@ -68,6 +69,16 @@ interface QuestCompletedUI {
   rewardXP: number
 }
 
+/** Snapshot nhiệm vụ hôm nay từ server — hiển thị chip tiến độ trên header. */
+interface QuestProgressUI {
+  code: string
+  title: string
+  icon: string
+  progress: number
+  target: number
+  completed: boolean
+}
+
 interface AnswerResponse {
   correct: boolean
   expected: string
@@ -75,6 +86,7 @@ interface AnswerResponse {
   score: number | null
   transcription: string | null
   questsCompleted?: QuestCompletedUI[]
+  questProgress?: QuestProgressUI[]
   session: {
     id: string
     index: number
@@ -159,6 +171,7 @@ export function LessonPlayer({
   const [submitting, setSubmitting] = useState(false)
   const [summary, setSummary] = useState<CompleteSummary | null>(null)
   const [combo, setCombo] = useState(0)
+  const [questProgress, setQuestProgress] = useState<QuestProgressUI[]>([])
   const [showQuit, setShowQuit] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [xpPops, setXpPops] = useState<{ id: number; amount: number }[]>([])
@@ -184,6 +197,7 @@ export function LessonPlayer({
     setSubmitting(false)
     setSummary(null)
     setCombo(0)
+    setQuestProgress([])
     setErrorMsg('')
     nextQuestionRef.current = null
     nextPassageRef.current = null
@@ -207,6 +221,7 @@ export function LessonPlayer({
         setSession(payload.session)
         setQuestion(payload.question)
         setPassage(payload.passage)
+        setQuestProgress(payload.questProgress ?? [])
         setPhase(payload.question ? 'question' : 'error')
         if (!payload.question) setErrorMsg('Node này chưa có nội dung.')
         questionStart.current = Date.now()
@@ -305,6 +320,8 @@ export function LessonPlayer({
         qc.invalidateQueries({ queryKey: ['quests'] })
         qc.invalidateQueries({ queryKey: ['overview'] })
       }
+      // Snapshot nhiệm vụ mới nhất → chip tiến độ trên header tự cập nhật
+      if (res.questProgress) setQuestProgress(res.questProgress)
 
       if (res.correct) {
         // hiệu ứng +XP nhỏ
@@ -512,6 +529,29 @@ export function LessonPlayer({
           <span className="text-xs font-extrabold text-muted-foreground tabular-nums">
             {session?.index ?? 0}/{session?.total ?? 0}
           </span>
+          {/* Chip tiến độ nhiệm vụ trực tiếp (từ server sau mỗi câu trả lời) —
+              Ải chính: chip đầu hiện từ 400px, chip thứ hai từ lg để không chật header */}
+          {questProgress
+            .filter((q) => !q.completed)
+            .slice(0, 2)
+            .map((q, i) => (
+              <motion.span
+                key={`${q.code}:${q.progress}`}
+                initial={{ scale: 1.18 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-1 text-[11px] font-extrabold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-help',
+                  i === 0 ? 'hidden min-[400px]:inline-flex' : 'hidden lg:inline-flex'
+                )}
+                title={`${q.title}: ${q.progress}/${q.target}`}
+                aria-label={`Nhiệm vụ ${q.title}: ${q.progress} trên ${q.target}`}
+              >
+                <Target className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span className="hidden min-[520px]:inline max-w-[96px] truncate font-bold">{q.title}</span>
+                {q.progress}/{q.target}
+              </motion.span>
+            ))}
           {session?.mode === 'LESSON' ? (
             <span
               className={cn('inline-flex items-center gap-1.5 font-extrabold text-destructive', heartLostAnim && 'animate-heart-lost')}

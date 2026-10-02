@@ -1,9 +1,10 @@
 'use client'
 
 import Image from 'next/image'
+import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useTheme } from 'next-themes'
-import { BookOpen, BookMarked, BookText, Languages, PenLine, RefreshCw, Search, Trophy, Target, Award, User, Settings, Shield, Moon, Sun, LogOut } from 'lucide-react'
+import { BookOpen, BookMarked, BookText, Flame, Languages, PenLine, RefreshCw, Search, Trophy, Target, Award, User, Settings, Shield, Moon, Sun, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { useHashRoute } from './router'
 import { useAuth, useAuthActions } from './use-auth'
@@ -120,6 +121,50 @@ export function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const { data: overview, isLoading } = useOverview()
   const { logout } = useAuthActions(useHashRoute())
   const { theme, setTheme } = useTheme()
+
+  // Nhắc nhẹ 1 lần/ngày khi mục tiêu ngày chưa đạt — thuần client (localStorage),
+  // biến thể theo khung giờ: buổi sáng chào đón, buổi tối khẩn cấp giữ chuỗi.
+  useEffect(() => {
+    if (isLoading || !overview) return
+    const streak = overview.streak
+    if (streak.goalMetToday || streak.dailyGoalXP <= 0) return
+    const now = new Date()
+    const key = `ngg:reminder:${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
+    try {
+      if (localStorage.getItem(key) === '1') return
+    } catch {
+      return // localStorage bị chặn → bỏ qua nhắc, đỡ gây phiền lặp
+    }
+    const remaining = Math.max(0, streak.dailyGoalXP - streak.todayXP)
+    const hour = now.getHours()
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(key, '1')
+      } catch {
+        /* bỏ qua */
+      }
+      if (streak.currentStreak > 0 && hour >= 18) {
+        toast.warning(`Chuỗi ${streak.currentStreak} ngày đang chờ bạn!`, {
+          description: `Còn ${remaining} XP nữa là đạt mục tiêu hôm nay — học ngay kẻo mất chuỗi nhé!`,
+          icon: <Flame className="h-4 w-4" />,
+          duration: 9000,
+        })
+      } else if (hour < 12) {
+        toast('おはよう · Chào buổi sáng!', {
+          description: `Hôm nay còn ${remaining} XP nữa là đạt mục tiêu — chỉ 5 phút học thôi là được.`,
+          icon: <Sun className="h-4 w-4" />,
+          duration: 9000,
+        })
+      } else {
+        toast('Mục tiêu hôm nay còn chờ bạn', {
+          description: `Còn ${remaining} XP nữa là chạm mốc ${streak.dailyGoalXP} XP — giữ nhịp học đều đặn nhé!`,
+          icon: <Target className="h-4 w-4" />,
+          duration: 9000,
+        })
+      }
+    }, 2600)
+    return () => window.clearTimeout(timer)
+  }, [overview, isLoading])
 
   // Mascot chúc một câu tục ngữ Nhật (kèm âm thanh nhẹ nếu bật)
   const mascotGreet = () => {

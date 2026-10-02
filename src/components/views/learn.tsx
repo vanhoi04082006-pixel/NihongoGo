@@ -1685,8 +1685,8 @@ function TodayHub({
           </div>
         </div>
 
-        {/* Cột phải: 2 ring — mục tiêu ngày + level */}
-        <div className="shrink-0 flex items-center lg:flex-col justify-center gap-4 sm:gap-6 lg:gap-3">
+        {/* Cột phải: 2 ring — mục tiêu ngày + level; flex-wrap để 320px không ép nhãn gãy dọc */}
+        <div className="shrink-0 flex flex-wrap items-center lg:flex-col justify-center gap-x-5 gap-y-2 sm:gap-x-6 lg:gap-3">
           <div className="flex items-center gap-3">
             <ProgressRing value={goalRatio} className="stroke-warning" size={88}>
               <Flame className={cn('h-4 w-4', overview?.streak.goalMetToday ? 'text-warning fill-warning/30' : 'text-muted-foreground')} aria-hidden />
@@ -1695,9 +1695,9 @@ function TodayHub({
                 <span className={cn('sr-only')}>{todayXP} trên {goal} XP</span>
               </span>
             </ProgressRing>
-            <div className="lg:hidden min-w-0">
-              <p className="text-sm font-bold">Mục tiêu hôm nay</p>
-              <p className="text-xs text-muted-foreground">
+            <div className="lg:hidden min-w-0 max-w-[170px]">
+              <p className="text-sm font-bold leading-snug">Mục tiêu hôm nay</p>
+              <p className="text-xs text-muted-foreground leading-snug">
                 {overview?.streak.goalMetToday ? 'Đã đạt — tuyệt vời!' : `Còn ${Math.max(0, goal - todayXP)} XP nữa`}
               </p>
             </div>
@@ -1712,9 +1712,9 @@ function TodayHub({
                 <span className="text-[10px] font-bold text-muted-foreground leading-none">CẤP</span>
                 <span className="text-lg font-extrabold tabular-nums leading-none">{level.level}</span>
               </ProgressRing>
-              <div className="lg:hidden min-w-0">
-                <p className="text-sm font-bold jp">{level.title}</p>
-                <p className="text-xs text-muted-foreground">{level.currentLevelXP}/{level.nextLevelXP} XP lên cấp {level.level + 1}</p>
+              <div className="lg:hidden min-w-0 max-w-[170px]">
+                <p className="text-sm font-bold jp leading-snug">{level.title}</p>
+                <p className="text-xs text-muted-foreground leading-snug">{level.currentLevelXP}/{level.nextLevelXP} XP lên cấp {level.level + 1}</p>
               </div>
               <p className="hidden lg:block text-[11px] font-bold text-muted-foreground text-center leading-tight">
                 KINH NGHIỆM<br />CẤP {level.level + 1}

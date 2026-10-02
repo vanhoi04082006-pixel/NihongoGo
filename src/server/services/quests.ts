@@ -66,6 +66,37 @@ export interface QuestCompletedInfo {
   rewardXP: number
 }
 
+/** Snapshot tiến độ quest hôm nay — cho chip trực tiếp trong lesson header. */
+export interface QuestProgressInfo {
+  code: string
+  title: string
+  icon: string
+  progress: number
+  target: number
+  completed: boolean
+}
+
+/**
+ * Trạng thái các nhiệm vụ hôm nay SAU mỗi tương tác (server-authoritative).
+ * Quest là tính năng phụ trợ → mọi lỗi đều trả mảng rỗng, không bao giờ
+ * chặn buổi học của người dùng.
+ */
+export async function getQuestProgressSnapshot(userId: string): Promise<QuestProgressInfo[]> {
+  try {
+    const quests = await getDailyQuests(userId)
+    return quests.map((q) => ({
+      code: q.code,
+      title: q.title,
+      icon: q.icon,
+      progress: q.progress,
+      target: q.target,
+      completed: q.completed,
+    }))
+  } catch {
+    return []
+  }
+}
+
 export async function bumpQuestProgress(userId: string, metric: QuestMetric, amount: number): Promise<QuestCompletedInfo[]> {
   if (amount <= 0) return []
   const user = await db.user.findUnique({ where: { id: userId }, include: { profile: true } })
