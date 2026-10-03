@@ -2028,7 +2028,7 @@ function DailyChallengeCard() {
         </p>
         {!done && data.reviewScope && data.reviewScope.lessonTitles.length > 0 && (
           <p
-            className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-warning/[0.08] border border-warning/25 px-2 py-0.5 text-[10.5px] font-semibold text-warning dark:text-warning/90"
+            className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-warning/[0.08] border border-warning/25 px-2 py-0.5 text-[11px] font-semibold text-warning dark:text-warning/90"
             title={`Ôn tập từ: ${data.reviewScope.lessonTitles.join(', ')}`}
           >
             <BookOpen className="h-3 w-3 shrink-0" aria-hidden />

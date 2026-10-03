@@ -1,11 +1,12 @@
 import { db } from '@/lib/db'
-import { badRequest, conflict, notFound } from '@/lib/api'
+import { badRequest, conflict, forbidden, notFound } from '@/lib/api'
 import { gradeAnswer, getPassageSubQuestions, type AnswerPayload, type QuestionDataShape, type CorrectShape, type ResolvedQuestion } from '@/server/domain/grading'
 import { computeLessonXp, levelFromXp } from '@/server/domain/xp'
 import { transcribeAudio } from './speech'
 import { getHeartConfig } from './config'
 import { getHearts, consumeHeart, grantHeart } from './hearts'
 import { recordMistake, resolveMistakeIfExists } from './mistakes'
+import { isNodeUnlocked } from './course'
 import { ensureSrsItem, recordAnswerSrs } from './srs'
 import { bumpQuestProgress, getQuestProgressSnapshot, type QuestCompletedInfo, type QuestProgressInfo } from './quests'
 import { awardXp } from './xp'
@@ -73,10 +74,15 @@ function parseState(raw: string): SessionState {
 /* ------------------------------ Create session ----------------------------- */
 
 export async function createNodeSession(userId: string, nodeId: string, mode: SessionMode = 'LESSON') {
-  const node = await db.lessonNode.findUnique({
-    where: { id: nodeId },
+  const node = await db.lessonNode.findFirst({
+    // Node/lesson DRAFT hoặc ARCHIVED không được start, kể cả khi đoán đúng id.
+    where: {
+      id: nodeId,
+      status: 'PUBLISHED',
+      lesson: { status: 'PUBLISHED' },
+    },
     include: {
-      lesson: { select: { id: true, title: true } },
+      lesson: { select: { id: true, title: true, courseId: true } },
       exercises: {
         where: { status: 'PUBLISHED' },
         orderBy: { order: 'asc' },
@@ -87,6 +93,22 @@ export async function createNodeSession(userId: string, nodeId: string, mode: Se
   if (!node) throw notFound('Không tìm thấy bài luyện tập')
   const questions = node.exercises.flatMap((ex) => ex.questions)
   if (questions.length === 0) throw notFound('Nội dung đang được biên soạn')
+
+  // Chặn node CHƯA MỞ KHOÁ. Client có thể gọi API trực tiếp với id bất kỳ
+  // (id xuất hiện trong payload /api/learn) nên phải kiểm tra ở server, không
+  // tin UI. Đây là hàng rào của toàn bộ hệ thống tiến bộ/gamification.
+  if (!(await isNodeUnlocked(userId, node.lesson.courseId, nodeId))) {
+    // PRACTICE chỉ được phép ôn lại thứ ĐÃ TỪNG HỌC (có NodeProgress), không cho
+    // ôn trước ải chưa tới — nếu cho phép thì nội dung tương lai bị xem trước và
+    // giá trị của chuỗi tiến bộ bị bào mòn.
+    const prior = await db.nodeProgress.findUnique({
+      where: { userId_nodeId: { userId, nodeId } },
+      select: { status: true },
+    })
+    if (!prior || (prior.status !== 'COMPLETED' && prior.status !== 'MASTERED')) {
+      throw forbidden('Bạn chưa mở khoá được ải này. Hãy hoàn thành ải trước đó.')
+    }
+  }
 
   if (mode === 'LESSON') {
     const config = await getHeartConfig()

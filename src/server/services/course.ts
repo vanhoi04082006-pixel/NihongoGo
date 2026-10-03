@@ -54,6 +54,78 @@ export interface CourseOverview {
   stats: { lessonsCompleted: number; totalLessons: number; currentLessonId: string | null }
 }
 
+/**
+ * Node có mở khoá hay không, theo ĐÚNG quy tắc mà `getCourseOverview` dùng để
+ * dựng learning path.
+ *
+ * Vì sao cần: `POST /api/lesson-sessions` có thể bị gọi trực tiếp với id bất kỳ
+ * (id xuất hiện trong payload của /api/learn). Nếu chỉ tin UI thì người dùng start
+ * được ải chưa mở và phá vỡ toàn bộ chuỗi tiến bộ. Hàm này là hàng rào phía server.
+ *
+ * Dùng lại đúng logic đã có, không nhân bản — lệch 1 nhánh là lệch cả hệ thống.
+ */
+export async function isNodeUnlocked(
+  userId: string,
+  courseId: string,
+  nodeId: string,
+): Promise<boolean> {
+  const course = await db.course.findFirst({
+    where: { id: courseId, status: 'PUBLISHED' },
+    orderBy: { order: 'asc' },
+    include: {
+      sections: {
+        orderBy: { order: 'asc' },
+        include: {
+          lessons: {
+            where: { status: { not: 'ARCHIVED' } },
+            orderBy: { order: 'asc' },
+            include: {
+              nodes: {
+                orderBy: { order: 'asc' },
+                include: { _count: { select: { exercises: { where: { status: 'PUBLISHED' } } } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  if (!course) return false
+
+  const sections = course.sections
+  // Vị trí node trong toàn cây: [sectionIndex, lessonIndex, nodeIndex]
+  let si = -1, li = -1, ni = -1
+  outer: for (let s = 0; s < sections.length; s++) {
+    for (let l = 0; l < sections[s].lessons.length; l++) {
+      const idx = sections[s].lessons[l].nodes.findIndex((n) => n.id === nodeId)
+      if (idx !== -1) { si = s; li = l; ni = idx; break outer }
+    }
+  }
+  if (si === -1) return false
+
+  const allNodeIds = sections.flatMap((s) => s.lessons.flatMap((l) => l.nodes.map((n) => n.id)))
+  const progresses = await db.nodeProgress.findMany({
+    where: { userId, nodeId: { in: allNodeIds } },
+    select: { nodeId: true, status: true },
+  })
+  const done = new Set(progresses.filter((p) => p.status === 'COMPLETED' || p.status === 'MASTERED').map((p) => p.nodeId))
+
+  const section = sections[si]
+  const lesson = section.lessons[li]
+  const node = lesson.nodes[ni]
+  // Chưa xuất bản / chưa có bài tập ⇒ coi như khoá (không start được)
+  if (node.status !== 'PUBLISHED' || node._count.exercises === 0) return false
+
+  if (si === 0 && li === 0 && ni === 0) return true
+  if (ni > 0) return done.has(lesson.nodes[ni - 1].id)
+
+  const prevLesson =
+    si > 0 ? sections[si - 1].lessons.at(-1) : section.lessons.find((l) => l.order === lesson.order - 1)
+  if (!prevLesson) return true
+  const boss = prevLesson.nodes.filter((n) => n.status === 'PUBLISHED').at(-1)
+  return boss ? done.has(boss.id) : true
+}
+
 export async function getCourseOverview(userId: string, courseSlug?: string): Promise<CourseOverview> {
   const course = await db.course.findFirst({
     where: courseSlug ? { slug: courseSlug, status: 'PUBLISHED' } : { status: 'PUBLISHED' },

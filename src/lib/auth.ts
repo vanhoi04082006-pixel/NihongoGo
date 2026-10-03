@@ -157,16 +157,26 @@ export function isHttpsRequest(req: NextRequest): boolean {
 }
 
 /**
- * Session cookie. Khi người dùng duyệt bằng HTTPS (kể cả trong iframe Preview
- * Panel — ngữ cảnh third-party), bắt buộc SameSite=None; Secure nếu không
- * trình duyệt sẽ lặng lẽ bỏ Set-Cookie → đăng nhập "thành công" nhưng mất
- * phiên ngay lập tức. Trên http://localhost giữ Lax cho đơn giản.
+ * Session cookie.
+ *
+ * Mặc định `SameSite=Lax` — đây là lớp phòng thủ CSRF mạnh nhất mà trình duyệt
+ * cấp miễn phí, và ứng dụng đã có `assertSameOrigin()` + double-submit token
+ * làm lớp thứ hai.
+ *
+ * `SameSite=None` CHỈ dùng khi app thật sự chạy trong iframe cross-site (Preview
+ * Panel), vì khi đó không gửi cookie ⇒ "đăng nhập thành công nhưng mất phiên".
+ * Bật tường minh bằng biến môi trường `COOKIE_SAMESITE=none` thay vì tự động
+ * theo scheme — vì trên production (Vercel) `x-forwarded-proto` luôn là https,
+ * nên logic "https ⇒ None" biến mọi cookie production thành `None` và vô hiệu
+ * hoàn toàn `Lax`.
  */
 export function setSessionCookie(res: NextResponse, token: string, expiresAt: Date, req?: NextRequest) {
   const https = req ? isHttpsRequest(req) : false
+  const forced = process.env.COOKIE_SAMESITE?.toLowerCase()
+  const sameSite = forced === 'none' ? 'none' : forced === 'strict' ? 'strict' : 'lax'
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    sameSite: https ? 'none' : 'lax',
+    sameSite,
     secure: https,
     path: '/',
     expires: expiresAt,

@@ -144,10 +144,8 @@ export function gradeAnswer(q: ResolvedQuestion, answer: AnswerPayload): GradeRe
       const expectedStrokes = d.strokeCount
       const gotStrokes = answer.strokeCount ?? 0
       const shape = Math.max(0, Math.min(100, answer.shapeSimilarity ?? 0))
-      // 50% số nét đúng + 50% hình dạng (client heuristic, công khai trong UI)
-      const strokeScore = Math.max(0, 100 - Math.abs(gotStrokes - expectedStrokes) * 25)
-      const score = Math.round(strokeScore * 0.5 + shape * 0.5)
-      const threshold = 'score' in c && typeof c.score === 'number' ? c.score : 60
+      const threshold = 'score' in c && typeof c.score === 'number' ? c.score : WRITING_PASS_SCORE
+      const score = scoreWriting(expectedStrokes, gotStrokes, shape)
       return {
         isCorrect: score >= threshold,
         score,
@@ -159,6 +157,28 @@ export function gradeAnswer(q: ResolvedQuestion, answer: AnswerPayload): GradeRe
       return { isCorrect: false, expectedDisplay: '' }
     }
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Công thức chấm dùng chung — nguồn duy nhất, tránh lệch giữa các nơi */
+/* ------------------------------------------------------------------ */
+
+/** Ngưỡng đạt mặc định cho bài viết tay (heuristic). */
+export const WRITING_PASS_SCORE = 60
+/** Phạt 25 điểm cho mỗi nét chênh lệch so với chuẩn. */
+export const WRITING_STROKE_PENALTY = 25
+
+/**
+ * Chấm viết tay: 50% số nét (server) + 50% độ phủ hình dạng (heuristic client).
+ *
+ * Cố ý nằm ở domain để dùng chung: trước đây công thức bị chép ở cả
+ * `gradeAnswer` lẫn `/api/writing/evaluate` với magic number rời rạc — lệch
+ * một chỗ là người học thấy "bài viết đúng" nhưng bị chấm sai ở nơi khác.
+ */
+export function scoreWriting(expectedStrokes: number, gotStrokes: number, shapeSimilarity: number): number {
+  const shape = Math.max(0, Math.min(100, shapeSimilarity))
+  const strokeScore = Math.max(0, 100 - Math.abs(gotStrokes - expectedStrokes) * WRITING_STROKE_PENALTY)
+  return Math.round(strokeScore * 0.5 + shape * 0.5)
 }
 
 /** Trả về sub-question của passage (dùng khi flatten session). */

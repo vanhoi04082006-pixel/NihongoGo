@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Loader2, Mic, PenLine, Square, Volume2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AudioButton, useTtsPlayer } from '@/components/shared/audio-button'
@@ -418,7 +418,11 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
   const d = question.data
   const pairs = d.pairs ?? []
   const [activeLeft, setActiveLeft] = useState<string | null>(null)
-  const done = draft.pairs ?? {}
+  // `useMemo` BẮT BUỘC: nếu để `draft.pairs ?? {}` thì object mới mỗi lần render,
+  // `done` đổi tham chiếu → effect dưới chạy lại → setLinks(mảng mới) → render lại
+  // → vòng lặp vô hạn, CPU cháy từ lúc câu matching hiện ra tới khi người học
+  // bấm cặp đầu tiên.
+  const done = useMemo(() => draft.pairs ?? {}, [draft.pairs])
   const matchedRights = new Set(Object.values(done))
   // Xáo trộn CỘT PHẢI mỗi lần vào câu — nếu giữ nguyên thứ tự của cột trái,
   // người học bấm "chéo" i-i từ trên xuống là ghép đúng toàn bộ mà không cần
@@ -440,7 +444,9 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
 
   // Vẽ lại đường nối mỗi khi: ghép cặp mới / xáo cột phải / resize / paginate.
   // Deferred qua queueMicrotask cho hợp rule react-hooks/set-state-in-effect.
-  const recompute = () => {
+  // `useCallback` + so sánh nội dung trước khi setState: nếu không, mỗi render
+  // tạo `out` mới nên effect chạy lại → setState → render → lặp vô hạn.
+  const recompute = useCallback(() => {
     const wrap = wrapRef.current
     if (!wrap) return
     const wr = wrap.getBoundingClientRect()
@@ -463,15 +469,19 @@ export function MatchingRenderer({ question, draft, setDraft, disabled, feedback
         d: `M ${from.x} ${from.y} C ${mx} ${from.y}, ${mx} ${to.y}, ${to.x} ${to.y}`,
       })
     }
-    setLinks(out)
-  }
+    // Chỉ setState khi thực sự khác — giữ nguyên tham chiếu khi không đổi.
+    setLinks((prev) => {
+      if (prev.length === out.length && prev.every((l, i) => l.id === out[i].id && l.d === out[i].d)) return prev
+      return out
+    })
+  }, [done])
+
   useEffect(() => {
     queueMicrotask(recompute)
     const ro = new ResizeObserver(() => queueMicrotask(recompute))
     if (wrapRef.current) ro.observe(wrapRef.current)
     return () => ro.disconnect()
-     
-  }, [done, rightOrder, question.id])
+  }, [recompute, done, rightOrder, question.id])
 
   const pickLeft = (id: string) => {
     if (disabled || feedback || done[id]) return

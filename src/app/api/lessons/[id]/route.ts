@@ -15,7 +15,12 @@ export const GET = route(async (req: NextRequest, ctx: { params: Promise<{ id: s
 
 async function dbFindLesson(id: string) {
   const { db } = await import('@/lib/db')
-  const lesson = await db.lesson.findFirst({ where: { OR: [{ id }, { slug: id }] }, select: { id: true } })
+  // Không cho đọc bài DRAFT/ARCHIVED: nếu không, chỉ cần biết id/slug là đọc
+  // được metadata + từ vựng + ngữ pháp của nội dung chưa xuất bản.
+  const lesson = await db.lesson.findFirst({
+    where: { OR: [{ id }, { slug: id }], status: 'PUBLISHED' },
+    select: { id: true },
+  })
   if (!lesson) throw notFound('Không tìm thấy bài học')
   return lesson
 }

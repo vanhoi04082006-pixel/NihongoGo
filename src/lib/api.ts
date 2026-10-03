@@ -122,12 +122,17 @@ export function assertSameOrigin(req: NextRequest) {
     if (h) candidates.add(h)
   }
   if (candidates.has(originHostname)) return
-  if (LOCAL_HOSTNAMES.has(originHostname)) return
+  // CHỈ cho phép bypass localhost ở môi trường dev. Ở production, bất kỳ origin
+  // `localhost` nào (mọi port) đều là origin của attacker nếu họ dựng được web
+  // server trên máy victim — cho qua là mất lớp phòng thủ CSRF.
+  if (process.env.NODE_ENV !== 'production' && LOCAL_HOSTNAMES.has(originHostname)) return
 
-  // Trình duyệt hiện đại xác nhận request xuất phát từ chính origin của URL đích —
-  // tín hiệu đáng tin hơn cả so khớp Origin/Host vì miễn nhiễm với proxy rewrite Host.
+  // `Sec-Fetch-Site` là header bị browser CẤM tự đặt, nên JS trang khác không giả
+  // được — nhưng curl/script thì tự do. Vì vậy KHÔNG được dùng nó làm điều kiện
+  // thoát độc lập: chỉ chấp nhận khi nó nói same-origin VÀ không có Origin
+  // khác host (đã kiểm tra ở trên, tức là candidates.has đã fail rồi).
   const secFetchSite = req.headers.get('sec-fetch-site')
-  if (secFetchSite === 'same-origin') return
+  if (secFetchSite === 'same-origin' && !candidates.has(originHostname) && !originHostname) return
 
   const headerToken = req.headers.get(CSRF_HEADER)
   const cookieToken = req.cookies.get(CSRF_COOKIE)?.value

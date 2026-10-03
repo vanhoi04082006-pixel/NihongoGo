@@ -455,9 +455,16 @@ export function LessonPlayer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
-        e.preventDefault()
-        if (phase === 'question' && canSubmit) void submit()
-        else if (phase === 'feedback') void next()
+        // Enter trên <button>/<a> phải kích hoạt phần tử đó. Chỉ nuốt phím khi ta
+        // thực sự xử lý (submit/next) — nếu preventDefault() vô điều kiện thì các
+        // nút ở màn 'completed'/'error' không bấm được bằng bàn phím.
+        if (phase === 'question' && canSubmit) {
+          e.preventDefault()
+          void submit()
+        } else if (phase === 'feedback') {
+          e.preventDefault()
+          void next()
+        }
         return
       }
       if (e.key === 'Escape') {

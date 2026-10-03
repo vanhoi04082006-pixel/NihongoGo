@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ok, route, assertSameOrigin, readJson, badRequest } from '@/lib/api'
 import { requireUser } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
+import { scoreWriting, WRITING_PASS_SCORE } from '@/server/domain/grading'
 
 const schema = z.object({
   character: z.string().min(1).max(4),
@@ -14,6 +15,9 @@ const schema = z.object({
 /**
  * Đánh giá viết tay (kana/kanji) — heuristic:
  * 50% số nét (server tính) + 50% độ tương đồng hình dạng (client canvas so với glyph chuẩn).
+ *
+ * Công thức nằm trong `domain/grading.ts` (`scoreWriting`) để dùng chung với
+ * `gradeAnswer` — không chép lại magic number ở đây.
  */
 export const POST = route(async (req: NextRequest) => {
   assertSameOrigin(req)
@@ -22,7 +26,7 @@ export const POST = route(async (req: NextRequest) => {
   const body = schema.safeParse(await readJson(req))
   if (!body.success) throw badRequest('Dữ liệu không hợp lệ')
 
-  const { character, strokeCount, shapeSimilarity } = body.data
+  const { character } = body.data
   const { db } = await import('@/lib/db')
   let expectedStrokes = body.data.expectedStrokes
   if (!expectedStrokes) {
@@ -35,11 +39,10 @@ export const POST = route(async (req: NextRequest) => {
   }
   if (!expectedStrokes) throw badRequest('Không xác định được số nét chuẩn')
 
-  const strokeScore = Math.max(0, 100 - Math.abs(strokeCount - expectedStrokes) * 25)
-  const score = Math.round(strokeScore * 0.5 + Math.max(0, Math.min(100, shapeSimilarity)) * 0.5)
+  const score = scoreWriting(expectedStrokes, body.data.strokeCount, body.data.shapeSimilarity)
   return ok({
     score,
-    passed: score >= 60,
+    passed: score >= WRITING_PASS_SCORE,
     expectedStrokes,
     note: 'Chấm heuristic: 50% số nét + 50% độ phủ hình dạng so với chữ chuẩn. Chưa phải nhận diện nét AI.',
   })
