@@ -1,209 +1,221 @@
-# Báo cáo — NihongoGo: dựng lại landing, kiểm thử toàn hệ thống, deploy production
+# Báo cáo cuối — NihongoGo
 
-> Ngày: **2026-10-04**
-> Phạm vi: rebuild landing · audit & sửa lỗi toàn bộ giao diện · test chức năng · deploy free
-> **Production: https://nihongogo-chi.vercel.app** (Vercel Hobby + Neon Postgres)
+> Ngày: **2026-10-04** · **Production: https://nihongogo-chi.vercel.app**
+> Commit: `b8c12bb` · Database: Neon Postgres (Free) · Hosting: Vercel Hobby (Free)
 
 ---
 
-## 1. Kết quả tổng quan
+## 1. Trả lời trực tiếp 5 câu hỏi của bạn
+
+### ① "Code vẫn ở local chưa push, Vercel chắc đang chạy code cũ?"
+**Đã push xong.** Nhưng giải thích chính xác để bạn không hiểu nhầm:
+
+- `vercel --prod` deploy từ **thư mục local**, KHÔNG phải từ GitHub. Nên trước khi push,
+  production vẫn **đã có code mới nhất**. Bạn nhìn production thấy giao diện mới là đúng.
+- Nhưng GitHub thì **thiếu 253 file** → ai clone repo đó chỉ nhận được code cũ.
+- Đã commit + push: `1fe5450..8c4110f..b8c12bb`. Vercel đã link GitHub nên push sau này tự deploy.
+
+### ② "Trình duyệt không có tiếng Nhật thì làm sao?"
+Đây là **lỗ hổng thật tôi đã tìm và sửa**. Trước khi sửa:
+- `AudioButton` **không bao giờ** gọi TTS server (chỉ dùng `speechSynthesis` của trình duyệt).
+- `/api/audio/tts` trả **500** vì z-ai-sdk chưa cấu hình.
+- Kết quả: máy không có giọng Nhật → **mất hoàn toàn âm thanh**, chỉ có 1 toast thông báo.
+
+Đã kiểm chứng trên production bằng headless Chrome: chỉ có **4 giọng, 0 giọng Nhật** —
+đúng tình huống người dùng thật gặp.
+
+Cách sửa:
+1. Chuỗi phát âm mới: **giọng trình duyệt → TTS server (nếu cấu hình) → thông báo**.
+2. Thêm provider TTS server dùng được thật qua `TTS_HTTP_ENDPOINT` + `TTS_API_KEY` + `TTS_VOICE`
+   (Google Cloud TTS / Azure). **Mặc định tắt** — vì voice mặc định của z-ai-sdk (`tongtong`)
+   là giọng Trung, đọc kana thành âm Hán, dạy sai phát âm còn tệ hơn không phát.
+3. Thêm **bảng cảnh báo** ở mọi màn hình khi thiếu giọng Nhật, kèm hướng dẫn cài **miễn phí**
+   (Windows: Cài giọng Nhật · macOS: Voice → Tiếng Nhật · Android: TTS). Đóng được, nhớ trạng thái.
+
+### ③ "Thiếu tính năng học vượt các bài"
+**Đã có sẵn và hoạt động.** Đây là hệ thống "test-out" kiểu Duolingo:
+- Nút **"Bỏ qua tới bài 2: Katakana"** trên learning path.
+- Nút **"Nhảy tới phần này?"** để nhảy tới section xa hơn.
+- Server dựng bài kiểm tra ngẫu nhiên từ **tất cả bài trước đó** (giới hạn 10 câu, 6 dạng
+  không cần mic), đạt ≥80% thì mở toàn bộ các bài trước.
+- Đã test trên production: `POST /api/lesson-sessions {source:"jump"}` → **200, mode JUMP**,
+  câu hỏi đầu `HIRAGANA_RECOGNITION`, **không lộ `correctData`**.
+
+### ④ "Có tính năng nói chưa?"
+**Có, và đã test thật trên production.** Verify trên browser với quyền microphone:
+- UI đầy đủ: nút mic, đồng hồ đếm 10s, "Bấm nút micro và đọc to câu trên",
+  "Không có micro — bỏ qua câu này", nút KIỂM TRA.
+- Node `k9 SPEAKING` — 8 câu `kind: speak` / `type: SPEAK`.
+- Chấm điểm: ASR → normalize tiếng Nhật → Levenshtein similarity, **tính server-side**
+  (client gửi điểm tự chấm sẽ bị bỏ qua — có test riêng).
+
+### ⑤ "Giao diện OK, kiểm thử đủ chưa?"
+Giao diện: **0 issue** ở 320px / 768px / 1440px, 19 màn hình, 57 ảnh.
+Kiểm thử: **chưa đủ** — và quá trình này đã phát hiện 2 lỗ hổng bảo mật nghiêm trọng
+(xem §3). Dưới đây là danh sách những gì **chưa** kiểm thử được.
+
+---
+
+## 2. Đã làm
 
 | Hạng mục | Kết quả |
 |---|---|
-| Landing page | **Xây lại toàn bộ** — 7 section, menu mobile, JSON-LD, section "Bên trong một bài học" |
-| Lỗi nghiêm trọng | **1 bug mất nội dung** đã sửa (xem §2.1) |
-| Lỗi chức năng / UX | **9 lỗi** đã sửa (xem §2.2) |
-| 9 lesson renderer | **9/9 PASS** với assertion thật |
-| Screenshot | **57 ảnh** toàn màn hình · 320px / 768px / 1440px · 19 màn hình |
-| Audit UI cuối | **0 issue** ở cả 3 viewport |
+| Landing | Xây lại toàn bộ — 7 section, menu mobile, JSON-LD, section "Bên trong một bài học" |
+| 9 lesson renderer | 9/9 PASS (choice · token-order · matching · text-input · fill-blank · audio-choice · passage · speak · writing) |
+| Audit giao diện | 19 màn hình × 3 viewport = **0 issue**, không tràn ngang |
 | Console production | **0 error** (landing → login → learn → kana) |
-| Test suite | 61 pass · 30 skip · **0 fail** |
-| Typecheck / lint | 0 error / 0 error |
-| Deploy | ✅ Vercel + Neon, verify health + auth + học bài đều PASS |
+| Test | 61 pass · 0 fail · tsc 0 error · lint 0 error |
+| Deploy | Vercel Hobby + Neon, verify health/auth/learn/lesson/jump/search/kana |
+| GitHub | Đồng bộ, 2 commit |
 
 ---
 
-## 2. Lỗi đã tìm ra và sửa
+## 3. 🚨 Lỗ hổng bảo mật nghiêm trọng — đã tìm, đã sửa, đã verify
 
-### 2.1 🔴 Bug nghiêm trọng — nội dung dưới hero vô hình vĩnh viễn
+Đây là phần quan trọng nhất của phiên làm việc này. Cả hai lỗi đều **khai thác được ngay
+trên production** trước khi sửa, và tôi đã **tự tái hiện** chứ không tin báo cáo của agent.
 
-**Hiện tượng:** chụp full-page screenshot lần đầu cho thấy toàn bộ section dưới hero
-(Khoá học · Tính năng · Hành trình · FAQ · CTA) là **mảng trắng trống**, dù layout
-đúng và nội dung có trong DOM.
+### 3.1 CRITICAL — Bypass toàn bộ hệ thống mở khoá bài học
 
-**Nguyên nhân:** landing dùng `whileInView` của framer-motion với `initial={{opacity:0}}`.
-Nếu `IntersectionObserver` không chạy (JS lỗi/tắt, trình duyệt cũ, mở bằng anchor
-tới giữa trang, service worker trả shell cũ), phần tử **mãi ở `opacity:0`**. Nội dung
-mất, và crawler cũng không đọc được — mất SEO lẫn nội dung.
+**Tái hiện (trước khi sửa):**
+```
+node LOCKED: "Hiragana: dakuten & handakuten"
+>>> START NODE CHƯA MỞ KHOÁ (PRACTICE): 200  ❌ BYPASS THÀNH CÔNG
+>>> MODE LESSON (bình thường):              200  ❌ BYPASS THÀNH CÔNG
+```
 
-**Cách sửa:** tạo component `src/components/shared/reveal.tsx` — chỉ ẩn khi thực sự có
-khả năng quan sát (client + có IO + user không bật reduced-motion), có lưới an toàn 2.6s
-ép hiện, và `setState` chỉ nằm trong callback bất đồng bộ để không gây cascading render.
+**Nguyên nhân:** `createNodeSession()` lấy node bằng `findUnique({ where: { id } })` —
+không lọc `status`, không kiểm tra node đã mở khoá hay chưa. Mà `id` lộ ra ngay trong
+payload của `GET /api/learn`. Người dùng thường chỉ cần `curl` là start được **mọi ải
+chưa tới**, kể cả ải boss.
 
-> Khi tự viết lại component này, tôi đã tạo ra lại **chính lỗi đó** (nhánh "đã nằm trong
-> viewport" set `armed` nhưng quên `shown`, đồng thời bỏ qua timer an toàn). Phát hiện ra
-> nhờ screenshot và probe DOM, đã sửa và verify lại bằng `opacity` đọc từ trình duyệt.
+**Hậu quả:** phá vỡ trục tiếp toàn bộ cơ chế tiến bộ — thứ tự ải, boss quiz mở bài sau,
+và mọi phần thưởng gamification dựa trên việc học đúng thứ tự.
 
-### 2.2 Các lỗi khác
+**Sửa:**
+- Thêm `isNodeUnlocked(userId, courseId, nodeId)` trong `course.ts` — **tái sử dụng đúng
+  quy tắc unlock** đang dùng để dựng learning path, không nhân bản (lệch 1 nhánh là lệch
+  cả hệ thống).
+- `createNodeSession` chỉ nhận node `PUBLISHED` + lesson `PUBLISHED`.
+- `PRACTICE` chỉ được ôn node **đã từng học** (có `NodeProgress`), không cho xem trước.
 
-| # | Lỗi | Nguyên nhân | Sửa |
+**Verify sau khi sửa:**
+```
+>>> START NODE CHƯA MỞ KHOÁ: 403 ✓ bị chặn
+>>> MODE LESSON (bình thường): 403 ✓ bị chặn
+```
+Đồng thời `login 200` · `learn 200` · `overview 200` — không hỏng gì.
+
+### 3.2 REQUIRED — Đọc nội dung bài DRAFT / ARCHIVED
+
+`GET /api/lessons/[id]` không lọc `status` → chỉ cần biết slug là đọc được metadata +
+từ vựng + ngữ pháp của bài **chưa xuất bản**. Đã thêm `status: 'PUBLISHED'`.
+
+### 3.3 REQUIRED — CSRF bị vô hiệu hoá trên production
+
+Vòng lặp chết người:
+
+```
+if (https) cookie.sameSite = 'none'      // Vercel luôn x-forwarded-proto = https
+                                       // ⇒ mọi cookie production là SameSite=None
+                                       // ⇒ mất trọn lớp phòng thủ CSRF mặc định
+```
+
+Và `assertSameOrigin()` có 2 lỗ hổng:
+- `if (LOCAL_HOSTNAMES.has(origin)) return` — ở production, bất kỳ origin `localhost` nào
+  đều pass. Attacker dựng web server trên máy victim rồi mở `http://localhost:8080/` là bypass.
+- `if (secFetchSite === 'same-origin') return` — không phải forbidden header, `curl` tự đặt
+  được. Đây không phải check mà là may mắn.
+
+Đã sửa: `SameSite` mặc định `lax` (chỉ `None` khi đặt tường minh `COOKIE_SAMESITE=none`);
+localhost chỉ bypass ở dev; `sec-fetch-site` không còn là điều kiện thoát độc lập.
+
+---
+
+## 4. Lỗi UI P0 — đã sửa
+
+### 4.1 Vòng lặp render vô hạn trong `MatchingRenderer`
+```tsx
+const done = draft.pairs ?? {}        // object MỚI mỗi render
+useEffect(() => { recompute() }, [done, ...])   // deps đổi mỗi render
+   → setLinks(mảng mới) → render → lặp
+```
+Từ lúc câu matching hiện ra tới khi người học bấm cặp đầu tiên, component re-render liên
+tục, CPU cháy. Sửa: `useMemo` cho `done`, `useCallback` cho `recompute`, và chỉ `setState`
+khi nội dung thực sự khác.
+
+### 4.2 Enter nuốt phím — nút không bấm được bằng bàn phím
+`e.preventDefault()` chạy ở **mọi** phase. Với `<button>`, Enter kích hoạt click ở
+`keydown` → bị chặn hoàn toàn. Hậu quả: các nút ở màn **"Hoàn thành"** và màn **lỗi**
+("Tiếp tục hành trình", "Học lại", "Về Learning Path") không dùng được bàn phím.
+Sửa: chỉ `preventDefault()` khi ta thực sự xử lý.
+
+### 4.3 Mất nội dung dưới hero (vòng trước)
+`whileInView` + `initial={{opacity:0}}` khiến toàn bộ section dưới hero vô hình vĩnh viễn
+nếu `IntersectionObserver` không chạy. Đã tạo `reveal.tsx` có lưới an toàn 2.6s + SSR fallback.
+
+---
+
+## 5. Code chết đã dọn
+
+- Xoá `src/app/api/speech/evaluate` + `src/app/api/speech/transcribe` — **0 call site**
+  (đường thật là `lessonSession.ts` gọi thẳng `transcribeAudio`).
+- Gộp công thức chấm viết tay vào `domain/grading.ts` (`scoreWriting`,
+  `WRITING_PASS_SCORE`) thay vì chép magic number `25 / 0.5 / 60` ở hai nơi.
+
+---
+
+## 6. ⚠️ Còn tồn đọng — cần xử lý
+
+| # | Vấn đề | Mức độ | Ghi chú |
 |---|---|---|---|
-| 1 | Hero image không hiển thị | `Reveal` kẹt `opacity:0` → container 0 chiều cao | Sửa `Reveal` |
-| 2 | Text 8–10px ở khắp app (18 file) | Badge/label micro quá nhỏ, khó đọc | Nâng lên 11px |
-| 3 | `accordion.tsx` render `<h3>` | Radix `Header` mặc định h3 → nhảy heading h1→h3 | Ép `<h2>` qua `asChild` |
-| 4 | `learn.tsx` có **2 thẻ `<h1>`** | Greeting + SectionBanner | SectionBanner h1 → h2 |
-| 5 | Heading nhảy h1→h3 ở `learn` | 5 `<h3>` lọt vào giữa h1/h2 | Đổi sang h2 |
-| 6 | **Grammar/Vocabulary trùng nhãn "Bài 1"** | 2 khoá đều có bài `order 1,2,3…` mà nhãn chỉ dùng `order` | Thêm nhãn khoá + sort theo khoá |
-| 7 | WebSocket leaderboard spam console error | Hardcode URL Caddy, không đổi theo môi trường | Env-aware `NEXT_PUBLIC_LIVE_WS` |
-| 8 | mini-service chết ngay khi khởi động (Windows) | `new URL().pathname` → `/E:/...`, `existsSync` false | `fileURLToPath` |
-| 9 | Login 401 trên production | Hash tạo với pepper `""` (từ `.env`), Vercel dùng pepper khác | Re-seed với `AUTH_SECRET` production |
-
-### 2.3 Sai lầm trong chính bộ test (đã sửa)
-
-Lần đầu báo "9/9 renderer PASS" là **false pass**: điều kiện kiểm tra chỉ là
-`bodyLen > 40`, mà shell rỗng cũng đạt. Đã siết lại thành: phải có nút `KIỂM TRA`
-**và** nội dung > 150 ký tự. Chạy lại với điều kiện thật → 9/9 PASS thật.
-
-Tương tự, `ui-audit.mjs` báo `IMG-NO-ALT` trên mọi màn hình — đó là **false positive**:
-`alt=""` là dấu hiệu ĐÚNG cho ảnh trang trí. Đã sửa thành chỉ flag khi thiếu hẳn thuộc tính.
+| 1 | **Rate-limit vô dụng trên Vercel** | Cao | `rate-limit.ts` dùng `Map` trong memory. Serverless mỗi invocation là instance mới ⇒ counter reset. Login có thể brute-force. Cần Redis/KV. |
+| 2 | **Store câu hỏi kana/kanji trong memory** | Cao | `globalThis.__kanaQuestionStore` — hết warm instance là hỏng ngẫu nhiên. Cần bảng DB. |
+| 3 | Vercel Hobby **chỉ dùng cá nhân, không thương mại** | — | Muốn kiếm tiền thì lên Pro $20/tháng. |
+| 4 | Đổi mật khẩu seed trước khi chia sẻ link | — | `admin@nihongogo.local/admin12345`. |
+| 5 | 30 integration test đang **skip** | Trung bình | Cần Neon **branch riêng** + `TEST_DATABASE_URL`. Test dùng `--force-reset` — tuyệt đối không trỏ vào DB production. |
+| 6 | `AUTH_SECRET` phải khớp lúc seed | Thủ tục | Đổi pepper sau khi seed ⇒ mất toàn bộ mật khẩu đã tạo. |
+| 7 | **Phân trang** cho `/api/vocabulary`, `/api/grammar`, `/api/kanji` | Trung bình | Trả toàn bảng. `/api/search` cố ý filter trong JS (dataset ~1.300 dòng) — có comment giải thích. |
+| 8 | **N+1 tuần tự** trong `applyJumpCompletion` | Trung bình | Hàng trăm round-trip mỗi lần jump. |
+| 9 | `learn.tsx` 2.119 dòng | Thấp | Nên tách `learning-path` / `today-hub` / `course-picker`. `ZigzagLessonPath` (~340 dòng) là component độc lập, test riêng được. |
+| 10 | Rò `setInterval` trong `SpeakRenderer` | Thấp | `startTimer()` ghi đè `timerRef.current` không `clearInterval` cũ. |
+| 11 | Nội dung **chưa HUMAN_REVIEWED** | — | Chưa có người Nhật kiểm tra kính ngữ / sắc thái ngữ cảnh. |
 
 ---
 
-## 3. Landing page mới
+## 7. Chưa kiểm thử được
 
-| Section | Nội dung |
-|---|---|
-| Hero | Badge · H1 · 2 CTA · chỉ số XP/streak/tim · ảnh + 2 card nổi |
-| Stats | 2 khoá · 70 bài · 4.876 câu · 1.155 từ — số liệu lấy từ DB thật |
-| **Vì sao khác** | 3 nỗi khó thật sự (bỏ dở 3 ngày · không nghe được · học xong quên) |
-| Khoá học | 2 thẻ: Irodori A1 (18 bài) · Tiếng Nhật cơ bản (52 bài) |
-| Tính năng | 8 thẻ: kana/kanji · nghe · nói · SRS · streak · tim · huy hiệu · server-side |
-| **Bên trong một bài học** | Pipeline 8 ải + 9 kiểu bài tập + ngưỡng Boss Quiz 70/80/90% |
-| Hành trình | 3 bước |
-| FAQ | 6 câu, trả lời trung thực (không bịa testimonial) |
-| CTA + Footer | CTA cuối, footer ghi công KanjiVG |
+Nói thẳng để không tạo cảm giác đã phủ hết:
 
-Bổ sung: menu mobile (trước không có — nav bị ẩn hoàn toàn dưới `md`), JSON-LD
-`EducationalOrganization`, nút `.btn-3d` nhấn có phản hồi, số liệu cập nhật từ DB
-(12 → 18 bài Irodori).
+- **Gõ romaji** (`text-input`) — không tự động gõ tiếng Nhật qua bàn phím ảo.
+- **Ghi âm thật + ASR** — headless Chrome không có mic thật; chỉ verify được UI, không
+  verify được độ chính xác chấm phát âm.
+- **Viết tay bằng chuột** — chưa test độ chính xác canvas/shape similarity.
+- **Admin CRUD mutation** — đã xác nhận API trả 200 nhưng chưa tạo/sửa/xoá nội dung thật
+  trên production (sợ bẩn dữ liệu).
+- **Âm thanh thực sự phát ra** — chưa nghe được; chỉ verify chuỗi gọi và UI.
+- **PWA / service worker offline** — chưa test.
+- **Tải file export dữ liệu** — chưa test.
 
 ---
 
-## 4. Kiểm thử
-
-### 4.1 Cơ sở kiểm thử
-- `scripts/ui-audit.mjs` — 19 màn hình × viewport, chụp full-page, bắt console error,
-  kiểm tra overflow ngang, text <11px, nút thiếu accessible name, phân cấp heading, ảnh thiếu `alt`.
-- `scripts/ui-flows.mjs` — 18 assert chức năng có tác dụng thật.
-- `scripts/_qa-dump.ts` — dump dữ liệu từ DB để test trả lời đúng như người dùng.
-
-### 4.2 Kết quả 9 renderer lesson
-
-| kind | kết quả | kind | kết quả |
-|---|---|---|---|
-| `choice` | ✅ | `fill-blank` | ✅ |
-| `token-order` | ✅ | `audio-choice` | ✅ |
-| `matching` | ✅ | `passage` | ✅ |
-| `text-input` | ✅ | `speak` | ✅ |
-| `writing` | ✅ | | |
-
-### 4.3 Audit giao diện
-
-| Viewport | Số màn hình | Issue |
-|---|---|---|
-| 320px (narrow) | 19 | **0** |
-| 768px (tablet) | 19 | **0** |
-| 1440px (desktop) | 19 | **0** |
-
-Không có tràn ngang ở bất kỳ viewport nào.
-
-### 4.4 Test suite
+## 8. Cách dùng
 
 ```
-bun test                     61 pass · 30 skip · 0 fail
-bunx tsc --noEmit            0 error
-bun run lint                 0 error (10 warning trong script QA tự viết)
-content-validate.ts          VALIDATE OK · 47/47 · 0 error · 0 warning
-irodori-validate.ts          OK · 18 bài · 279 từ · 1.419 câu
+Production : https://nihongogo-chi.vercel.app
+Tài khoản dev (ĐỔI NGAY trước khi chia sẻ):
+  admin@nihongogo.local / admin12345   (quản trị + CMS)
+  demo@nihongogo.local  / demo12345   (học viên)
+
+Nội dung : 70 bài · 11 section · 4.876 câu · 1.155 từ · 190 ngữ pháp
+           208 kana · 119 kanji · 26 achievement
+
+Hai khoá:
+  basic      N5 · 52 bài · 7 section  (kana → JLPT N4)
+  irodori-a1 A1 · 18 bài · 4 section  (sinh tồn)
 ```
 
-> **Lưu ý:** 30 test integration bị **skip** có chủ đích. Schema đã đổi sang provider
-> `postgresql`, còn test tự tạo SQLite tạm. Test giờ đọc `TEST_DATABASE_URL` và sẽ tự
-> chạy khi bạn trỏ nó tới một database Postgres **riêng** (tuyệt đối không dùng DB
-> production — test dùng `--force-reset`).
-
----
-
-## 5. Deploy
-
-### 5.1 Vì sao chọn Vercel + Neon
-
-| Tiêu chí | Vercel Hobby | Neon Free |
-|---|---|---|
-| Giá | $0 vĩnh viễn | $0 vĩnh viễn |
-| Cần thẻ Visa | **Không** | **Không** |
-| Hạn dùng | Không | Không (không phải trial) |
-| Phù hợp | Node server luôn bật | Postgres thật, 1 GB |
-
-**Quyết định kỹ thuật:** schema Prisma được thiết kế **cố tình portable** — không dùng
-enum, không dùng native `Json`, mọi thứ là `String` + validate bằng Zod. Nên đổi từ
-SQLite sang PostgreSQL chỉ là **1 dòng** (`provider`), đã kiểm chứng.
-
-### 5.2 Những gì không giữ được trên nền tảng free
-
-| Tính năng | Lý do | Ảnh hưởng |
-|---|---|---|
-| Leaderboard realtime (socket.io) | Serverless không chạy tiến trình socket.io dài hạn | **Không hề hỏng** — view tự chuyển sang polling 45 s. Đã sửa để **không còn** spam console error khi không có WS |
-| Cache TTS trên filesystem | Serverless không có ổ đĩa bền | **Không ảnh hưởng** — app vốn đã phát audio bằng `speechSynthesis` của trình duyệt |
-
-### 5.3 Đã verify trên production thật
-
-```
-GET  /api/health/live    200  {"status":"ok"}
-GET  /api/health/ready   200  {"status":"ready","db":"up"}     ← Neon kết nối được
-POST /api/auth/login     200  (session cookie)
-GET  /api/auth/me        200  demo@nihongogo.local · role=USER
-GET  /api/learn          200  7 section · 52 bài
-GET  /api/overview       200  level 1 "Tân binh · 新人"
-POST /api/lesson-sessions 200  tạo phiên thật
-POST .../answer          200  correct=false, expected="a"  ← chấm điểm server-side
-POST .../quit            200
-GET  /api/kana           200  104 ký tự (public)
-GET  /api/search         200
-Browser: landing → login → learn → kana: 0 console error
-```
-
-### 5.4 ⚠️ Điều cần biết trước khi dùng lâu
-
-1. **Vercel Hobby chỉ cho dùng cá nhân, không thương mại.** Nếu bạn định kiếm tiền từ
-   site này thì phải lên Pro $20/tháng — nền tảng sẽ giới hạn dùng cho mục đích thương mại.
-2. **Cần tạo Neon database mới sẽ mất dữ liệu.** Giải pháp dài hạn: dùng `prisma migrate`
-   + Neon branching để có DB test riêng và CI chạy được integration test.
-3. **Tài khoản seed chỉ dùng cho dev.** Đổi mật khẩu trước khi chia sẻ link.
-4. **`AUTH_SECRET` phải khớp lúc seed.** Nếu đổi pepper sau khi seed thì tất cả mật khẩu
-   đã tạo sẽ không verify được. Quy trình đúng: đặt `AUTH_SECRET` → seed → deploy.
-
----
-
-## 6. File đã thay đổi
-
-**Mới:** `src/components/shared/reveal.tsx` · `scripts/ui-audit.mjs` ·
-`scripts/ui-flows.mjs` · `scripts/_qa-dump.ts` · `vercel.json`
-
-**Sửa:** `src/components/views/landing.tsx` (viết lại) · `src/components/ui/accordion.tsx` ·
-`src/components/views/learn.tsx` · `src/components/app/use-leaderboard-live.ts` ·
-`src/app/api/grammar/route.ts` · `src/app/api/vocabulary/route.ts` ·
-`mini-services/leaderboard-live/index.ts` · `prisma/schema.prisma` (provider) ·
-`tests/integration/*.test.ts` (hỗ trợ Postgres) · 18 file khác (cỡ chữ 11px)
-
----
-
-## 7. Việc còn lại nên làm
-
-1. **Đổi mật khẩu tài khoản seed** trước khi chia sẻ link production.
-2. **Chốt `.gitignore`** cho `qa/` và `.vercel-*` (đã thêm trong phiên này nhưng chưa commit).
-3. **Tạo Neon branch cho test** để bật lại 30 integration test.
-4. **Bật realtime** nếu cần: chạy `mini-services/leaderboard-live` trên host có WebSocket
-   rồi đặt `NEXT_PUBLIC_LIVE_WS`.
-5. **Rà soát nội dung bởi người bản xứ** — hiện trạng `MACHINE_REVIEWED`, chưa có người
-   Nhật kiểm tra kính ngữ và sắc thái ngữ cảnh.
+**Cài giọng Nhật để nghe (miễn phí)** — bắt buộc nếu muốn nghe:
+- Windows: Cài đặt → Thời gian & ngôn ngữ → Ngôn ngữ → Thêm 日本語 → tuỳ chọn «Giọng nói»
+- macOS: Cài đặt → Ngôn ngữ & Vùng → Giọng nói → Tiếng Nhật → Tải giọng
+- Sau khi cài: `chrome://settings/languages` → tải lại trang
