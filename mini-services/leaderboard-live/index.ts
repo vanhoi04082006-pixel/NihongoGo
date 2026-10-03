@@ -15,13 +15,19 @@
  */
 import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { Database } from 'bun:sqlite'
 import { Server } from 'socket.io'
 
 /* --------------------------------- Config --------------------------------- */
 
 const PORT = 3004 // hardcoded — KHÔNG đọc env PORT
-const DB_PATH = decodeURIComponent(new URL('../../db/custom.db', import.meta.url).pathname)
+/**
+ * `new URL(...).pathname` trả "/E:/..." trên Windows → không phải path hợp lệ,
+ * existsSync() luôn false và service chết ngay. `fileURLToPath` xử lý đúng cả
+ * Windows (drive letter) lẫn POSIX.
+ */
+const DB_PATH = fileURLToPath(new URL('../../db/custom.db', import.meta.url))
 const POLL_MS = 5000
 
 if (!existsSync(DB_PATH)) {

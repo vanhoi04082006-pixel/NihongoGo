@@ -23,7 +23,7 @@ export function StreakBadge({ count, freezes, className }: { count: number; free
       {count}
       {showFreezes && (
         <span
-          className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-bold leading-none"
+          className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-[11px] font-bold leading-none"
           title="Bảo vệ chuỗi — mỗi cái bảo vệ 1 ngày bỏ lỡ"
         >
           <Snowflake className="h-3 w-3" aria-hidden />

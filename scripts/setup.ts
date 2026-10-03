@@ -10,8 +10,8 @@
  *   2. Đảm bảo thư mục `db/` tồn tại
  *   3. `prisma generate` — sinh Prisma Client
  *   4. `prisma db push` — tạo SQLite database theo schema
- *   5. Seed dữ liệu học (52 bài, ~3.283 câu hỏi, 876 từ vựng, 137 ngữ pháp,
- *      119 kanji, 208 kana, achievements, quests, users mẫu)
+ *   5. Seed dữ liệu học (70 bài, 4.876 câu hỏi, 190 ngữ pháp,
+ *      119 kanji, 208 kana, 26 achievement, 8 quest, 10 users mẫu)
  *
  * An toàn khi chạy lại: `.env` hiện có được giữ nguyên; seed dùng upsert cho
  * users và dựng lại nội dung học (course/lessons) — tiến độ học của tài khoản
@@ -94,7 +94,7 @@ ${c.cyan('╰──────────────────────�
   done('Database sẵn sàng.')
 
   // 5. seed
-  step(5, TOTAL, 'Seed dữ liệu học (52 bài học, kana, kanji, ngữ pháp…)')
+  step(5, TOTAL, 'Seed dữ liệu học (70 bài học, kana, kanji, ngữ pháp…)')
   run('bun prisma/seed.ts')
 
   console.log(`

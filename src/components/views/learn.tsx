@@ -361,9 +361,9 @@ export function LearnView() {
         {/* Daily quest */}
         <div className="rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-sm flex items-center gap-1.5">
+            <h2 className="font-bold text-sm flex items-center gap-1.5">
               <Target className="h-4 w-4 text-sakura" aria-hidden /> Nhiệm vụ hôm nay
-            </h3>
+            </h2>
             <button onClick={() => navigate('/quests')} className="text-xs font-semibold text-primary hover:underline outline-none">
               Tất cả
             </button>
@@ -389,24 +389,24 @@ export function LearnView() {
           onClick={() => navigate('/review')}
           className="rounded-2xl border bg-card p-4 text-left hover:border-primary/40 hover:shadow-md transition-all group"
         >
-          <h3 className="font-bold text-sm flex items-center gap-1.5 mb-2">
+          <h2 className="font-bold text-sm flex items-center gap-1.5 mb-2">
             <RefreshCw className="h-4 w-4 text-primary" aria-hidden /> Ôn tập hôm nay
-          </h3>
+          </h2>
           <p className="text-2xl font-extrabold tabular-nums text-primary">{overview?.review.dueCount ?? 0}</p>
           <p className="text-xs text-muted-foreground">mục đến hạn ôn · bấm để bắt đầu</p>
         </button>
 
         {/* Streak mini */}
         <div className="rounded-2xl border bg-card p-4">
-          <h3 className="font-bold text-sm flex items-center gap-1.5 mb-2.5">
+          <h2 className="font-bold text-sm flex items-center gap-1.5 mb-2.5">
             <Flame className="h-4 w-4 text-warning" aria-hidden /> Chuỗi 7 ngày
-          </h3>
+          </h2>
           <div className="flex justify-between">
             {overview?.streakWeek.map((d) => (
               <div key={d.date} className="flex flex-col items-center gap-1" title={`${d.date}: ${d.xp} XP`}>
                 <div
                   className={cn(
-                    'h-7 w-7 rounded-lg flex items-center justify-center text-[10px] font-bold',
+                    'h-7 w-7 rounded-lg flex items-center justify-center text-[11px] font-bold',
                     d.met ? 'bg-warning/20 text-warning' : d.xp > 0 ? 'bg-muted text-muted-foreground' : 'bg-muted/50 text-muted-foreground/50'
                   )}
                 >
@@ -430,9 +430,9 @@ export function LearnView() {
           onClick={() => navigate('/leaderboard')}
           className="rounded-2xl border bg-card p-4 text-left hover:border-primary/40 hover:shadow-md transition-all"
         >
-          <h3 className="font-bold text-sm flex items-center gap-1.5 mb-2">
+          <h2 className="font-bold text-sm flex items-center gap-1.5 mb-2">
             <Trophy className="h-4 w-4 text-warning" aria-hidden /> Xếp hạng tuần
-          </h3>
+          </h2>
           <div className="flex items-center gap-2">
             <LeagueBadge league={overview?.stats.league ?? 'SAKURA'} showName />
             <XPBadge xp={overview?.stats.weeklyXP ?? 0} className="ml-auto" />
@@ -628,11 +628,11 @@ function SectionBanner({ section, totalStats }: { section: SectionDTO; totalStat
             <span className="rounded-full bg-white/20 px-2 py-0.5">Hoàn thành!</span>
           )}
         </div>
-        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight mt-1">{section.title}</h1>
+        <h2 className="mt-1 text-xl font-extrabold tracking-tight sm:text-2xl">{section.title}</h2>
         <p className="text-xs sm:text-sm opacity-85 mt-0.5 max-w-lg">{section.description}</p>
         <div className="mt-3 max-w-md">
           <Progress value={pct} className="h-2.5 bg-white/25" />
-          <p className="text-[10px] font-semibold opacity-75 mt-1.5">
+          <p className="text-[11px] font-semibold opacity-75 mt-1.5">
             {pct}% phần này · toàn khóa: {totalStats.lessonsCompleted}/{totalStats.totalLessons} bài
           </p>
         </div>
@@ -839,9 +839,9 @@ function LessonBlock({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Bài kế tiếp</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground">Bài kế tiếp</p>
               {isDraft && (
-                <span className="text-[10px] font-bold rounded-full bg-muted px-2 py-0.5 text-muted-foreground inline-flex items-center gap-1">
+                <span className="text-[11px] font-bold rounded-full bg-muted px-2 py-0.5 text-muted-foreground inline-flex items-center gap-1">
                   <Sparkles className="h-3 w-3" /> Đang biên soạn
                 </span>
               )}
@@ -893,7 +893,7 @@ function LessonBlock({
             <p className="text-xs font-bold tabular-nums">
               {lesson.completedNodes}/{lesson.totalNodes}
             </p>
-            <p className="text-[10px] text-muted-foreground">ải</p>
+            <p className="text-[11px] text-muted-foreground">ải</p>
           </div>
         </div>
         {lesson.totalNodes > 0 && (
@@ -941,7 +941,7 @@ function CollapsedLesson({
               </h3>
               <p className="text-[11px] text-muted-foreground truncate">{lesson.title}</p>
             </div>
-            <span className="text-[10px] font-bold rounded-full bg-success/15 text-success px-2 py-0.5 shrink-0">
+            <span className="text-[11px] font-bold rounded-full bg-success/15 text-success px-2 py-0.5 shrink-0">
               Hoàn thành
             </span>
           </div>
@@ -1233,7 +1233,7 @@ function PathNode({
 
       {/* Chip BOSS — nhãn ải trùm */}
       {isBoss && !isCurrent && (
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 rounded-full bg-warning text-white text-[9px] font-black uppercase tracking-[0.14em] px-2 py-[3px] shadow-sm pointer-events-none">
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 rounded-full bg-warning text-white text-[11px] font-black uppercase tracking-[0.14em] px-2 py-[3px] shadow-sm pointer-events-none">
           Boss
         </span>
       )}
@@ -1301,7 +1301,7 @@ function PathNode({
         <TooltipContent side={dir <= 0 ? 'left' : 'right'} className="max-w-[220px] px-3 py-2">
           <p className="font-extrabold text-[13px] leading-tight">{node.title}</p>
           {isBoss && (
-            <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest opacity-80">Ải trùm cuối bài</p>
+            <p className="mt-0.5 text-[11px] font-black uppercase tracking-widest opacity-80">Ải trùm cuối bài</p>
           )}
           <p className="mt-0.5 opacity-90">{stateLabel}</p>
           {!isLocked && node.exerciseCount > 0 && (
@@ -1335,7 +1335,7 @@ function PathNode({
 
       {/* Nhãn dưới node — luôn hiển thị; cao cố định để tâm nút ổn định (NODE_CY) */}
       <div className="mt-1.5 w-[120px] sm:w-[150px] min-h-[28px] text-center pointer-events-none">
-        <p className={cn('text-[10px] sm:text-[11px] font-bold leading-tight line-clamp-2', isLocked && 'text-muted-foreground')}>
+        <p className={cn('text-[11px] font-bold leading-tight line-clamp-2', isLocked && 'text-muted-foreground')}>
           {node.title}
         </p>
       </div>
@@ -1455,10 +1455,10 @@ function WordOfDayCard({ onNavigateVocab }: { onNavigateVocab: () => void }) {
   return (
     <div className="rounded-2xl border bg-gradient-to-br from-sakura/10 via-card to-primary/10 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-bold text-sm flex items-center gap-1.5">
-          <CalendarDays className="h-4 w-4 text-sakura" aria-hidden /> Từ của ngày
-        </h3>
-        <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{dateLabel}</span>
+<h2 className="font-bold text-sm flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4 text-sakura" aria-hidden /> Từ của ngày
+          </h2>
+        <span className="text-[11px] font-bold text-muted-foreground tabular-nums">{dateLabel}</span>
       </div>
 
       <div className="flex items-start justify-between gap-3">
@@ -1484,7 +1484,7 @@ function WordOfDayCard({ onNavigateVocab }: { onNavigateVocab: () => void }) {
       >
         <p className="font-bold text-sm group-hover:text-primary">{word.meaningVi}</p>
         {word.pos && (
-          <span className="text-[10px] font-bold uppercase tracking-wide rounded-full bg-primary/10 text-primary px-2 py-0.5">
+          <span className="text-[11px] font-bold uppercase tracking-wide rounded-full bg-primary/10 text-primary px-2 py-0.5">
             {word.pos}
           </span>
         )}
@@ -1698,7 +1698,7 @@ function TodayHub({
               <Rocket className="h-5 w-5 shrink-0" aria-hidden />
               {nextNode ? (
                 <span className="text-left leading-tight py-0.5">
-                  <span className="block text-[10px] font-bold uppercase tracking-[0.18em] opacity-85">
+                  <span className="block text-[11px] font-bold uppercase tracking-[0.18em] opacity-85">
                     Tiếp tục học
                   </span>
                   <span className="block text-[15px] max-w-[210px] @xl:max-w-[260px] leading-snug line-clamp-2">{nextNode.node.title}</span>
@@ -1744,7 +1744,7 @@ function TodayHub({
           {level && (
             <div className="flex items-center gap-3">
               <ProgressRing value={level.progress} className="stroke-primary" size={88}>
-                <span className="text-[10px] font-bold text-muted-foreground leading-none">CẤP</span>
+                <span className="text-[11px] font-bold text-muted-foreground leading-none">CẤP</span>
                 <span className="text-lg font-extrabold tabular-nums leading-none">{level.level}</span>
               </ProgressRing>
               <div className="lg:hidden min-w-0 max-w-[170px]">
@@ -1780,7 +1780,7 @@ function TodayHub({
               <p className="text-sm font-extrabold tabular-nums leading-none">
                 {s.learned}<span className="text-xs text-muted-foreground font-bold"> / {s.total}</span>
               </p>
-              <p className="text-[10px] font-bold text-muted-foreground leading-tight">{s.label}</p>
+              <p className="text-[11px] font-bold text-muted-foreground leading-tight">{s.label}</p>
             </div>
           </div>
         ))}
@@ -1933,7 +1933,7 @@ function NextActionCard({
         <Icon className={cn('h-5 w-5', action.color)} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{action.eyebrow}</span>
+        <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{action.eyebrow}</span>
         <span className="block text-sm font-extrabold leading-snug truncate">{action.title}</span>
         <span className="block text-xs text-muted-foreground leading-snug truncate">{action.desc}</span>
       </span>
@@ -2006,9 +2006,9 @@ function DailyChallengeCard() {
         <p className="font-extrabold text-sm leading-tight flex items-center gap-1.5 flex-wrap">
           Thử thách hàng ngày
           {done ? (
-            <span className="text-[10px] font-bold rounded-full bg-success text-white px-2 py-0.5 uppercase tracking-wide">Xong</span>
+            <span className="text-[11px] font-bold rounded-full bg-success text-white px-2 py-0.5 uppercase tracking-wide">Xong</span>
           ) : (
-            <span className="text-[10px] font-bold rounded-full bg-warning text-white px-2 py-0.5 uppercase tracking-wide">+15 XP</span>
+            <span className="text-[11px] font-bold rounded-full bg-warning text-white px-2 py-0.5 uppercase tracking-wide">+15 XP</span>
           )}
           {data.challengeStreak > 0 && (
             <span

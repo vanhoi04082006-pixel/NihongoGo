@@ -62,7 +62,7 @@ export function VocabDetailDialog({
               <DialogDescription className="text-sm">
                 {item.reading ? <span className="jp mr-1.5">{item.reading}</span> : null}
                 <span className="font-medium">{item.romaji}</span>
-                {item.pos ? <Badge variant="secondary" className="ml-2 h-5 px-2 text-[10px] align-middle">{item.pos}</Badge> : null}
+                {item.pos ? <Badge variant="secondary" className="ml-2 h-5 px-2 text-[11px] align-middle">{item.pos}</Badge> : null}
               </DialogDescription>
             </DialogHeader>
           </div>

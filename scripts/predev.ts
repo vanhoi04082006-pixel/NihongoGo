@@ -198,7 +198,7 @@ console.log('')
 if (status.reason === 'stale-seed') {
   console.log('→ Dựng lại toàn bộ nội dung học (tài khoản được GIỮ NGUYÊN, tiến độ học sẽ đặt lại).')
 } else {
-  console.log('Đang tự động khởi tạo (.env → prisma generate → db push → seed 52 bài học)…')
+  console.log('Đang tự động khởi tạo (.env → prisma generate → db push → seed 70 bài học)…')
   console.log(dim('Lần đầu mất khoảng 1–2 phút — các lần chạy sau sẽ bỏ qua bước này.'))
 }
 console.log('')

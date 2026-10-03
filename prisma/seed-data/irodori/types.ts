@@ -78,7 +78,7 @@ export interface IrodoriLesson {
   translateJaVi: IrodoriTranslateJaVi[]
   /** 2 câu ghép từ kho từ */
   wordBank: IrodoriWordBank[]
-  /** Kanji của bài — PHẢI có trong kanji.ts (31 chữ) */
+  /** Kanji của bài — PHẢI có trong kanjiList (119 chữ) */
   kanji?: string[]
   /** Kana đơn luyện viết tay — PHẢI có trong kana.ts */
   writingKana?: string[]

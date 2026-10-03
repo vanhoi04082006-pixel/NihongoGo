@@ -51,7 +51,10 @@ export const GET = route(async (req: NextRequest) => {
   const [lessons, points, srsItems] = await Promise.all([
     db.lesson.findMany({
       where: { status: 'PUBLISHED' },
-      select: { id: true, slug: true, title: true, titleJa: true, order: true },
+      select: {
+        id: true, slug: true, title: true, titleJa: true, order: true,
+        course: { select: { slug: true, title: true, order: true } },
+      },
       orderBy: { order: 'asc' },
     }),
     db.grammarPoint.findMany({
@@ -66,6 +69,15 @@ export const GET = route(async (req: NextRequest) => {
     }),
   ])
 
+  // 2 khoá (basic + irodori-a1) đều có bài order 1,2,3… → nhãn "Bài 1" trùng nhau,
+  // người học không biết mục thuộc khoá nào. Gắn nhãn khoá và sắp xếp theo khoá trước.
+  const COURSE_LABEL: Record<string, string> = {
+    basic: 'N5 cơ bản',
+    'irodori-a1': 'Irodori A1',
+  }
+  const courseLabel = (slug: string | undefined, order: number) =>
+    (slug ? COURSE_LABEL[slug] : undefined) ?? `Khoá ${order}`
+
   const srsByCode = new Map(srsItems.map((s) => [s.itemKey, s]))
 
   const lessonById = new Map(lessons.map((l) => [l.id, l]))
@@ -74,6 +86,7 @@ export const GET = route(async (req: NextRequest) => {
     lessonSlug: string | null
     lessonTitle: string
     lessonOrder: number
+    courseOrder: number
     items: GrammarItemDTO[]
   }>()
 
@@ -85,8 +98,11 @@ export const GET = route(async (req: NextRequest) => {
       g = {
         lessonId: lesson?.id ?? null,
         lessonSlug: lesson?.slug ?? null,
-        lessonTitle: lesson ? `Bài ${lesson.order}: ${lesson.title}` : 'Ngữ pháp chung',
+        lessonTitle: lesson
+          ? `${courseLabel(lesson.course?.slug, lesson.course?.order ?? 0)} · Bài ${lesson.order}: ${lesson.title}`
+          : 'Ngữ pháp chung',
         lessonOrder: lesson?.order ?? 9999,
+        courseOrder: lesson?.course?.order ?? 9999,
         items: [],
       }
       groupsMap.set(key, g)
@@ -110,7 +126,9 @@ export const GET = route(async (req: NextRequest) => {
     })
   }
 
-  const groups = [...groupsMap.values()].sort((a, b) => a.lessonOrder - b.lessonOrder)
+  const groups = [...groupsMap.values()].sort(
+    (a, b) => a.courseOrder - b.courseOrder || a.lessonOrder - b.lessonOrder,
+  )
   const allItems = groups.flatMap((g) => g.items)
   return ok({
     groups,

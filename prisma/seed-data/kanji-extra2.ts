@@ -1,6 +1,6 @@
 /**
  * NihongoGo — Kanji mở rộng batch 2 (nội dung gốc).
- * 39 chữ N5/N5+ phục vụ các bài L11+ (tham chiếu từ skeletons.ts):
+ * 39 chữ N5/N5+ phục vụ các bài L11+ (tham chiếu từ curriculum/lesson11+):
  * 出向越事者例様病夢親兄弟教習開閉壊御申貴参致承顔目声理由予可能確秋冬昔昨頃若疲
  * Quy ước kunyomi: dấu chấm (.) ngăn phần gán cho kanji và okurigana (vd で.る);
  * đọc kun không kèm okurigana thì ghi nguyên (vd こと, もの, ゆめ).

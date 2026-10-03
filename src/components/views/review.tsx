@@ -147,7 +147,7 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-sm">{TYPE_LABEL[type] ?? type}</p>
                   {s.due > 0 && (
-                    <span className="text-[10px] font-bold rounded-full bg-primary/10 text-primary px-2 py-0.5">{s.due} đến hạn</span>
+                    <span className="text-[11px] font-bold rounded-full bg-primary/10 text-primary px-2 py-0.5">{s.due} đến hạn</span>
                   )}
                 </div>
                 <p className="text-2xl font-extrabold tabular-nums">{s.total}</p>
@@ -243,7 +243,7 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
                   <div className="shrink-0 text-right">
                     <span
                       className={cn(
-                        'text-[10px] font-bold rounded-full px-2 py-0.5 inline-flex items-center gap-1',
+                        'text-[11px] font-bold rounded-full px-2 py-0.5 inline-flex items-center gap-1',
                         m.resolved ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
                       )}
                     >
@@ -255,7 +255,7 @@ export function ReviewView({ initialTab }: { initialTab: 'srs' | 'mistakes' }) {
                         `Sai ${m.timesWrong} lần`
                       )}
                     </span>
-                    <p className="text-[10px] text-muted-foreground mt-1.5">{relativeDays(m.lastWrongAt)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">{relativeDays(m.lastWrongAt)}</p>
                   </div>
                 </div>
               </div>
@@ -327,7 +327,7 @@ function ReviewForecast({ forecast, dueCount }: { forecast: { date: string; coun
           const h = d.count > 0 ? Math.max(10, Math.round((d.count / max) * 100)) : 4
           return (
             <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
-              <span className={cn('text-[10px] font-extrabold tabular-nums leading-none', d.count > 0 ? 'text-foreground/75' : 'text-muted-foreground/40')}>
+              <span className={cn('text-[11px] font-extrabold tabular-nums leading-none', d.count > 0 ? 'text-foreground/75' : 'text-muted-foreground/40')}>
                 {d.count > 0 ? d.count : ''}
               </span>
               <div className="w-full h-16 sm:h-20 rounded-lg bg-muted/60 flex items-end overflow-hidden">
@@ -341,7 +341,7 @@ function ReviewForecast({ forecast, dueCount }: { forecast: { date: string; coun
                   )}
                 />
               </div>
-              <span className={cn('text-[10px] font-bold truncate max-w-full', isToday ? 'text-primary' : 'text-muted-foreground')}>
+              <span className={cn('text-[11px] font-bold truncate max-w-full', isToday ? 'text-primary' : 'text-muted-foreground')}>
                 {isToday ? 'Nay' : DOW_SHORT[dow]}
               </span>
             </div>

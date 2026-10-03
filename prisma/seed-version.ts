@@ -11,5 +11,5 @@
  * ⚠️ Bump hằng số này mỗi khi thay đổi nội dung seed (thêm/sửa bài học) để mọi
  * máy dev tự nhận nội dung mới qua `bun run dev`.
  */
-export const SEED_VERSION = 'v2-2026-10-01-irodori'
+export const SEED_VERSION = 'v3-2026-10-03-irodori18'
 export const SEED_VERSION_KEY = 'seedVersion'

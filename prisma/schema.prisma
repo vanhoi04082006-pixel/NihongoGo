@@ -1,14 +1,16 @@
 // NihongoGo — Prisma schema
-// SQLite (dev sandbox) → PostgreSQL (production): đổi provider + DATABASE_URL.
-// Lưu ý: SQLite không hỗ trợ enum/Json của Prisma → dùng String + mặc định,
-// giá trị hợp lệ được validate bằng Zod ở application layer; JSON lưu dạng chuỗi.
+// provider = "postgresql" (production: Neon) — schema CỐ TÍNH portable:
+// không dùng enum/Json native của Prisma (mọi thứ là String + validate Zod ở
+// application layer) nên chuyển từ SQLite sang PostgreSQL là 1 dòng.
+// Dev local vẫn chạy được nếu bạn tạm đổi provider về "sqlite" + đổi
+// DATABASE_URL thành file:../db/custom.db.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

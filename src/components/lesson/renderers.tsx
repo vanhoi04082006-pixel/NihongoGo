@@ -781,7 +781,7 @@ export function SpeakRenderer({ question, draft, setDraft, disabled, feedback }:
             </span>
           </div>
           {feedback && engine && (
-            <p className="text-[10px] text-muted-foreground">{engine === 'browser' ? 'Nhận diện tại trình duyệt (Web Speech API)' : 'Nhận diện qua máy chủ'}</p>
+            <p className="text-[11px] text-muted-foreground">{engine === 'browser' ? 'Nhận diện tại trình duyệt (Web Speech API)' : 'Nhận diện qua máy chủ'}</p>
           )}
           <div className="h-2.5 rounded-full bg-muted overflow-hidden">
             <div
@@ -843,7 +843,7 @@ export function WritingRenderer({ question, draft, setDraft, disabled, feedback 
         >
           <PenLine className="h-4 w-4" aria-hidden />
           {showGuide ? 'Ẩn hướng dẫn viết' : `Xem hướng dẫn viết ${d.character ?? ''}`}
-          <span className="text-[10px] font-semibold text-muted-foreground" aria-hidden>
+          <span className="text-[11px] font-semibold text-muted-foreground" aria-hidden>
             ({d.strokeCount ?? '?'} nét)
           </span>
         </button>

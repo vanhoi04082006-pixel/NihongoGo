@@ -42,7 +42,7 @@ prisma/schema.prisma            # ~35 models
 prisma/seed.ts                  # seed runner (idempotent)
 prisma/seed-data/               # pure TS data files (content)
   types.ts                      # content contracts (shared types)
-  kana.ts kanji.ts skeletons.ts lesson1.ts lesson2.ts lesson3.ts
+  kana.ts kanji.ts lesson1.ts lesson2.ts lesson3.ts curriculum/ irodori/
   achievements.ts quests.ts leagues.ts
 src/lib/                        # shared infra (db, auth, http, japanese, rate-limit)
 src/server/domain/              # pure logic: grading, srs scheduler, xp calc, streak calc
@@ -79,7 +79,7 @@ SQLite cho dev theo ràng buộc môi trường; chuyển production: đổi `pr
 ## 5. Progression & Unlock
 
 - Node states: `LOCKED → AVAILABLE → IN_PROGRESS → COMPLETED → MASTERED` (mastered khi replay đạt ≥ required score).
-- Chuỗi: node trước hoàn thành (score ≥ requiredScore) mới mở node sau; boss quiz cuối lesson phải xong mới mở lesson sau; section trước xong mới mở section sau. Skeleton lessons (L4–L50) có node DRAFT → hiển thị "Đang biên soạn".
+- Chuỗi: node trước hoàn thành (score ≥ requiredScore) mới mở node sau; boss quiz cuối lesson phải xong mới mở lesson sau; section trước xong mới mở section sau. Bài chưa có node sẽ có 1 node DRAFT placeholder → hiển thị "Đang biên soạn".
 
 ## 6. SRS
 
@@ -109,9 +109,17 @@ SQLite cho dev theo ràng buộc môi trường; chuyển production: đổi `pr
 
 `AnalyticsProvider` (server-side, DB-backed `AnalyticsEvent`): lesson_started, question_answered, question_wrong, lesson_completed, lesson_failed, review_completed, streak_extended, achievement_unlocked, quest_completed. Không lưu dữ liệu nhạy cảm.
 
-## 11. Testing & Validation (theo ràng buộc môi trường)
+## 11. Testing & Validation
 
-Môi trường sandbox cấm chạy production build và chủ trương không viết test code — nên QA thay bằng: `bun run lint`, typecheck qua dev compiler, và **E2E thủ công bằng agent-browser** (register → onboarding → học Lesson 1 → XP/streak/quest → admin CRUD). Các calc domain (XP, streak, SRS, normalize) được viết dưới dạng pure function để có thể test sau.
+Ba tầng, tất cả chạy tự động trong CI (`.github/workflows/ci.yml`):
+
+- **Unit** (`bun test tests/unit`) — pure function: japanese normalizer, grading engine mọi `kind` + anti-cheat (server không tin điểm client), datetime theo timezone VN, công thức XP, CSRF helpers. 61 test.
+- **Integration** (`bun test tests/integration`) — gọi route handler thật trên SQLite tự sinh trong `tests/.tmp` (đặt `DATABASE_URL` **trước** khi import module DB): register/login/logout/me, CSRF/origin 2 chiều, RBAC USER→admin 403, phiên học + trả lời theo đáp án thật từ DB, hearts không âm, XP ledger, double-complete, optimistic-lock, kana practice server-graded. 30 test.
+- **E2E** (`bun run test:e2e`) — Playwright trên browser thật: đăng ký UI → đăng xuất → đăng nhập UI → học node kana đầu tiên (đọc `correctData` từ DB để trả lời đúng mọi renderer) → test-out "Nhảy tới đây?" → kiểm chứng node bài trước `COMPLETED` + bài mới mở khoá + không có XP ảo trong ledger.
+
+Ngoài ra: `bun scripts/content-validate.ts` + `irodori-validate.ts` (validate nội dung **trước** seed) và `bun scripts/audit-content.ts` (audit DB **sau** seed, `--json` cho CI, exit 1 khi có ERROR).
+
+Lưu ý: `next.config.ts` đặt `typescript.ignoreBuildErrors: true`, nên `bun run build` **không** thay thế được `bunx tsc --noEmit` — CI tách riêng job `typecheck`.
 
 ## 12. Visual Identity
 

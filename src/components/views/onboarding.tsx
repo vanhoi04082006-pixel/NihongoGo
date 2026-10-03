@@ -232,7 +232,7 @@ function ChoiceCard({
       <div className={cn(full && 'flex-1')}>
         <div className="font-semibold flex items-center gap-2">
           {label}
-          {badge && <span className="text-[10px] font-bold rounded-full bg-sakura/10 text-sakura px-2 py-0.5">{badge}</span>}
+          {badge && <span className="text-[11px] font-bold rounded-full bg-sakura/10 text-sakura px-2 py-0.5">{badge}</span>}
         </div>
         {desc && <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>}
       </div>

@@ -15,7 +15,10 @@ export const GET = route(async (req: NextRequest) => {
   const [lessons, vocabs, srsItems] = await Promise.all([
     db.lesson.findMany({
       where: { status: 'PUBLISHED' },
-      select: { id: true, slug: true, title: true, titleJa: true, order: true },
+      select: {
+        id: true, slug: true, title: true, titleJa: true, order: true,
+        course: { select: { slug: true, order: true } },
+      },
       orderBy: { order: 'asc' },
     }),
     db.vocabulary.findMany({
@@ -47,7 +50,10 @@ export const GET = route(async (req: NextRequest) => {
   }
 
   const lessonById = new Map(lessons.map((l) => [l.id, l]))
-  const groupsMap = new Map<string, { lessonId: string | null; lessonSlug: string | null; lessonTitle: string; lessonOrder: number; items: ReturnType<typeof decorate>[] }>()
+  const groupsMap = new Map<string, { lessonId: string | null; lessonSlug: string | null; lessonTitle: string; lessonOrder: number; courseOrder: number; items: ReturnType<typeof decorate>[] }>()
+
+  // 2 khoá đều có bài order 1,2,3… → "Bài 1" trùng nhau. Gắn nhãn khoá cho rõ.
+  const COURSE_LABEL: Record<string, string> = { basic: 'N5 cơ bản', 'irodori-a1': 'Irodori A1' }
 
   type Raw = (typeof vocabs)[number]
   function decorate(v: Raw) {
@@ -62,8 +68,11 @@ export const GET = route(async (req: NextRequest) => {
       g = {
         lessonId: lesson?.id ?? null,
         lessonSlug: lesson?.slug ?? null,
-        lessonTitle: lesson ? `Bài ${lesson.order}: ${lesson.title}` : 'Từ vựng chung',
+        lessonTitle: lesson
+          ? `${lesson.course?.slug && COURSE_LABEL[lesson.course.slug] ? COURSE_LABEL[lesson.course.slug] : 'Khoá'} · Bài ${lesson.order}: ${lesson.title}`
+          : 'Từ vựng chung',
         lessonOrder: lesson?.order ?? 9999,
+        courseOrder: lesson?.course?.order ?? 9999,
         items: [],
       }
       groupsMap.set(key, g)
@@ -71,7 +80,9 @@ export const GET = route(async (req: NextRequest) => {
     g.items.push(decorate(v))
   }
 
-  const groups = [...groupsMap.values()].sort((a, b) => a.lessonOrder - b.lessonOrder)
+  const groups = [...groupsMap.values()].sort(
+    (a, b) => a.courseOrder - b.courseOrder || a.lessonOrder - b.lessonOrder,
+  )
   const statusCounts = { NEW: 0, LEARNING: 0, REVIEW: 0, MASTERED: 0, WEAK: 0 }
   for (const v of vocabs) statusCounts[statusOf(v.term).status]++
 

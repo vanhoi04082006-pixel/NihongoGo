@@ -6,17 +6,43 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 /**
- * Chiến lược phát âm tiếng Nhật (zero-cost, không phụ thuộc API trả phí):
- * 1) GIỌNG NHẬT TRÌNH DUYỆT (speechSynthesis, lang ja-JP) — phát âm chuẩn nhất
- *    (Chrome/Edge: Google 日本語 / Microsoft Nanami; macOS/iOS: Kyoko; Android: Google Nhật).
- * 2) Nếu trình duyệt không có giọng Nhật → utterance lang=ja-JP không kén voice
- *    (yêu cầu hệ thống chọn giọng Nhật nếu có) + THÔNG BÁO rõ cho người dùng.
+ * Chiến lược phát âm tiếng Nhật — theo thứ tự, dừng ở bước đầu tiên thành công:
+ *  1) GIỌNG NHẬT TRÌNH DUYỆT (speechSynthesis, lang ja-JP) — miễn phí, chuẩn nhất.
+ *  2) TTS SERVER (`/api/audio/tts`) — chỉ khi trình duyệt KHÔNG có giọng Nhật.
+ *     Yêu cầu cấu hình `TTS_HTTP_ENDPOINT` + voice Nhật thật ở server, xem
+ *     `src/server/services/speech.ts`.
+ *  3) Nếu cả hai không có → utterance lang=ja-JP không kén voice (hệ thống tự
+ *     chọn nếu có) + thông báo hướng dẫn cài giọng Nhật.
  *
- * KHÔNG tự rơi vào TTS server khi thiếu giọng Nhật: các voice server hiện có đều
- * là giọng Trung đọc kana tiếng Nhật thành âm Hán — dạy sai phát âm, thà không
- * phát còn hơn. (/api/audio/tts vẫn giữ như provider tùy chọn cho môi trường có
- * voice Nhật phía server.)
+ * VÌ SAO KHÔNG mặc định bật TTS server: provider mặc định của z-ai-sdk
+ * (`tongtong`) là giọng Trung, đọc kana thành âm Hán — dạy sai phát âm còn tệ hơn
+ * là không phát. Nên chỉ dùng server khi người vận hành chủ động cấu hình.
  */
+
+/** Phát qua TTS server. Trả false nếu server không có/không trả audio. */
+export async function playServerTts(text: string, speed = 1): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    const res = await fetch(ttsUrl(text, speed), { credentials: 'same-origin' })
+    if (!res.ok) return false
+    const blob = await res.blob()
+    if (blob.size < 200) return false
+    const url = URL.createObjectURL(blob)
+    const el = new Audio(url)
+    await el.play()
+    // dọn object URL sau khi phát xong
+    el.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true })
+    el.addEventListener('error', () => URL.revokeObjectURL(url), { once: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** true nếu trình duyệt đang có ít nhất một giọng đọc tiếng Nhật. */
+export function hasJapaneseVoice(): boolean {
+  return pickJapaneseVoice(refreshVoices()) !== null
+}
 
 /* Thông báo thiếu giọng Nhật — tối đa 1 lần / 60s để không spam toast */
 let noJaVoiceNotifiedAt = 0
@@ -122,6 +148,37 @@ export function speakFallback(text: string, speed = 1): boolean {
 
 /* -------------------------------- TTS player -------------------------------- */
 
+/**
+ * Hook báo trạng thái giọng Nhật của trình duyệt.
+ *
+ * Rất nhiều máy Windows/macOS KHÔNG có sẵn giọng đọc tiếng Nhật — người dùng bấm
+ * loa nghe không ra gì mà không hiểu vì sao. Hook này giúp UI hiện hướng dẫn cài
+ * giọng (miễn phí) thay vì im lặng.
+ *
+ * `null` = đang kiểm tra · `true` = có giọng Nhật · `false` = không có.
+ */
+export function useJapaneseVoice(): boolean | null {
+  const [has, setHas] = useState<boolean | null>(null)
+  useEffect(() => {
+    let alive = true
+    const check = () => {
+      if (!alive) return
+      setHas(hasJapaneseVoice())
+    }
+    check()
+    // Voice list của Chrome tải bất đồng bộ → chờ tới voiceschanged (tối đa 3s)
+    const t = setTimeout(check, 1500)
+    const s = typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null
+    s?.addEventListener?.('voiceschanged', check)
+    return () => {
+      alive = false
+      clearTimeout(t)
+      s?.removeEventListener?.('voiceschanged', check)
+    }
+  }, [])
+  return has
+}
+
 export function useTtsPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null)
@@ -159,7 +216,7 @@ export function useTtsPlayer() {
       stop()
       if (!text.trim()) return
       setPlaying(true)
-      // 1) Giọng Nhật trình duyệt (zero-cost)
+      // 1) Giọng Nhật trình duyệt (zero-cost, chuẩn nhất)
       const spoke = await playBrowserJa(text, speed)
       if (spoke) {
         // Bảo hiểm nếu onend không bắn (một số trình duyệt)
@@ -167,8 +224,13 @@ export function useTtsPlayer() {
         setTimeout(() => setPlaying(false), est)
         return
       }
-      // 2) Không có giọng Nhật → utterance lang=ja-JP (hệ thống tự chọn nếu có)
-      //    + thông báo rõ (KHÔNG âm thầm phát giọng khác ngôn ngữ)
+      // 2) Không có giọng Nhật trong trình duyệt → thử TTS server (nếu đã cấu hình)
+      const viaServer = await playServerTts(text, speed)
+      if (viaServer) {
+        setTimeout(() => setPlaying(false), Math.max(1200, text.length * 260))
+        return
+      }
+      // 3) Cả hai không có → utterance lang=ja-JP + thông báo hướng dẫn cài giọng
       notifyNoJapaneseVoice()
       const ok = speakFallback(text, speed)
       if (!ok) {

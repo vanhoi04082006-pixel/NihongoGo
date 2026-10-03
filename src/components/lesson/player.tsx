@@ -1045,7 +1045,7 @@ function CompletionScreen({
               <div className="flex-1 min-w-0">
                 <p className="font-bold flex items-center gap-2">
                   {a.title}
-                  <span className="text-[10px] font-bold rounded-full bg-warning text-white px-2 py-0.5">{a.tier}</span>
+                  <span className="text-[11px] font-bold rounded-full bg-warning text-white px-2 py-0.5">{a.tier}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">{a.description}</p>
               </div>

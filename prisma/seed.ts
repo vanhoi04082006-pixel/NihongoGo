@@ -1,9 +1,9 @@
 /**
  * NihongoGo — Seed (chạy: bun prisma/seed.ts)
  * - Users: admin + demo (credentials chỉ dùng local dev, xem README)
- * - Course + 7 sections + kana lessons (sinh tự động từ data) + L1/L2/L3 + 47 skeletons
- * - Kana 208, Kanji 31, Achievements, Quests, demo leaderboard users
- * - Cuối cùng: seed Irodori A1 (khoá 2, 12 bài) + patch k9/k10 cho kana-hiragana
+ * - Course + 7 sections + kana lessons (sinh tự động từ data) + L1/L2/L3 + L4–L50 curriculum
+ * - Kana 208, Kanji 119, Achievements, Quests, demo leaderboard users
+ * - Cuối cùng: seed Irodori A1 (khoá 2, 18 bài) + patch k9/k10 cho kana-hiragana
  *   (idempotent — xem prisma/seed-irodori.ts)
  */
 import { PrismaClient } from '@prisma/client'
@@ -28,7 +28,6 @@ import { questTemplates } from './seed-data/quests'
 import { lesson1 } from './seed-data/lesson1'
 import { lesson2 } from './seed-data/lesson2'
 import { lesson3 } from './seed-data/lesson3'
-import { lessonSkeletons } from './seed-data/skeletons'
 import { curriculumLessons } from './seed-data/curriculum/index'
 import { seedIrodori } from './seed-irodori'
 import { SEED_VERSION, SEED_VERSION_KEY } from './seed-version'
@@ -154,10 +153,9 @@ async function main() {
   const katakanaLesson = buildKanaLesson('KATAKANA', 'Katakana', katakana, kBasic, 2)
 
   // Lesson 4–50: curriculum đầy đủ (nội dung gốc, đã qua content-validate).
-  // Skeleton chỉ còn là fallback cho các order chưa có curriculum.
-  const curriculumOrders = new Set(curriculumLessons.map((l) => l.order))
-  const fallbackSkeletons = lessonSkeletons.filter((s) => !curriculumOrders.has(s.order))
-  const allLessons = [lesson1, lesson2, lesson3, ...curriculumLessons, ...fallbackSkeletons]
+  // Đã verify: curriculum phủ trọn order 4–50, không trùng, không lỗ hổng —
+  // nên không còn fallback skeleton nào.
+  const allLessons = [lesson1, lesson2, lesson3, ...curriculumLessons]
   const totalLessons = allLessons.length + 2 // + 2 bài kana
   let seeded = 0
   const seedLogged = async (sectionId: string, l: SeedLesson) => {
@@ -479,7 +477,7 @@ async function seedLesson(courseId: string, sectionId: string, l: SeedLesson) {
     } })
   }
 
-  // Skeleton lessons: 1 node draft placeholder để CMS quản lý
+  // Bài chưa có node: tạo 1 node draft placeholder để CMS quản lý
   const nodes: SeedNode[] =
     l.nodes.length > 0
       ? l.nodes

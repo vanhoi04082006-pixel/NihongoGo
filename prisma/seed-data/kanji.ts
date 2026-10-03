@@ -1,8 +1,7 @@
 /**
- * NihongoGo — Kanji N5 seed data.
- * CHÚ Ý: đề bài ghi "exactly 30" nhưng danh sách ký tự VÀ danh sách số nét đều liệt kê 31 chữ
- * (一…校, có đủ strokeCount cho 31 chữ). File này chứa đủ 31 chữ theo danh sách để lesson
- * content (Task 2-a-2) có thể tham chiếu bất kỳ chữ nào đã được chỉ định.
+ * NihongoGo — Kanji N5 seed data (lõi 40 chữ).
+ * File này chứa 40 chữ N5 nền; `kanji-extra1.ts` (+40) và `kanji-extra2.ts` (+39)
+ * mở rộng lên tổng 119 chữ (N5 = 68, N4 = 51) — xem `kanjiList` ở cuối file.
  */
 import type { SeedKanji } from './types'
 import { kanjiExtra1 } from './kanji-extra1'

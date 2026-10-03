@@ -29,6 +29,49 @@ export interface TtsResult {
   mimeType: string
 }
 
+/**
+ * Provider TTS server qua HTTP chung (Google Cloud TTS, Azure, ElevenLabs…).
+ *
+ * VÌ SAO CẦN: voice mặc định của z-ai-sdk (`tongtong`) là giọng Trung, đọc kana
+ * tiếng Nhật thành âm Hán → dạy sai phát âm. Nên mặc định KHÔNG bật provider này.
+ * Người vận hành bật khi có API key và voice Nhật thật:
+ *   TTS_HTTP_ENDPOINT=https://...        endpoint nhận POST JSON
+ *   TTS_API_KEY=...                     header Authorization (tuỳ chọn)
+ *   TTS_VOICE=ja-JP-...                 voice Nhật (mặc định 'ja')
+ * Client chỉ gọi tới đây khi trình duyệt KHÔNG có giọng Nhật.
+ */
+async function synthesizeViaHttpEndpoint(
+  text: string,
+  speed: number,
+  voice: string,
+): Promise<TtsResult | null> {
+  const endpoint = process.env.TTS_HTTP_ENDPOINT
+  if (!endpoint) return null
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (process.env.TTS_API_KEY) headers.Authorization = `Bearer ${process.env.TTS_API_KEY}`
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      input: text,
+      voice: process.env.TTS_VOICE ?? voice,
+      voiceName: process.env.TTS_VOICE ?? voice,
+      lang: 'ja-JP',
+      speed,
+      response_format: 'mp3',
+    }),
+    signal: AbortSignal.timeout(8000),
+  })
+  if (!res.ok) throw new ApiError(502, 'TTS_HTTP_ERROR', `TTS provider trả về ${res.status}`)
+
+  const type = res.headers.get('content-type') ?? 'audio/mpeg'
+  const buffer = Buffer.from(new Uint8Array(await res.arrayBuffer()))
+  if (buffer.length < 100) throw new ApiError(502, 'TTS_EMPTY_AUDIO', 'TTS provider trả về audio rỗng')
+  return { buffer, mimeType: type.includes('wav') ? 'audio/wav' : 'audio/mpeg' }
+}
+
 /** Sinh audio cho text tiếng Nhật. Cache vĩnh viễn theo nội dung. */
 export async function synthesizeJapanese(text: string, speed = 1, voice = 'tongtong'): Promise<TtsResult> {
   const clean = text.trim().slice(0, MAX_TTS_LEN)
@@ -45,6 +88,33 @@ export async function synthesizeJapanese(text: string, speed = 1, voice = 'tongt
     } catch {
       // đọc lỗi → regenerate
     }
+  }
+
+  // Ưu tiên provider HTTP nếu được cấu hình (voice Nhật thật).
+  let httpResult: TtsResult | null = null
+  try {
+    httpResult = await synthesizeViaHttpEndpoint(clean, speedClamped, voice)
+  } catch (e) {
+    console.error('[tts] http provider failed:', e)
+    throw new ApiError(503, 'TTS_UNAVAILABLE', 'Dịch vụ đọc tiếng Nhật tạm thời không khả dụng')
+  }
+  if (httpResult) {
+    try {
+      await fs.mkdir(CACHE_DIR, { recursive: true })
+      await fs.writeFile(filePath, httpResult.buffer)
+      await db.audioAsset.upsert({
+        where: { cacheKey },
+        update: { lastAccessAt: new Date(), byteSize: httpResult.buffer.length },
+        create: {
+          cacheKey, text: clean, voice, speed: speedClamped,
+          provider: 'http-endpoint', mimeType: httpResult.mimeType,
+          filePath, byteSize: httpResult.buffer.length,
+        },
+      })
+    } catch (e) {
+      console.error('[tts] cache write failed:', e)
+    }
+    return httpResult
   }
 
   const zai = await getZai()

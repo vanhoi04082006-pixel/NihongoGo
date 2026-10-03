@@ -163,24 +163,24 @@ export function AchievementsView() {
                   <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2 min-h-8">{a.description}</p>
                   <div className="mt-2.5">
                     {a.unlocked ? (
-                      <span className={cn('inline-block text-[10px] font-bold rounded-full px-2.5 py-1', tier.badge)}>
+                      <span className={cn('inline-block text-[11px] font-bold rounded-full px-2.5 py-1', tier.badge)}>
                         {tier.label} · Đã đạt{dateLabel ? ` · ${dateLabel}` : ''}
                       </span>
                     ) : (
                       <>
                         <Progress value={pct} className="h-1.5" />
-                        <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                        <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
                           {a.current}/{a.threshold}
                         </p>
                       </>
                     )}
                   </div>
                   {isNearGoal && !a.unlocked && (
-                    <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 rounded-full bg-warning text-white text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 shadow-sm">
+                    <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 rounded-full bg-warning text-white text-[11px] font-black uppercase tracking-wide px-1.5 py-0.5 shadow-sm">
                       <Sparkles className="h-2.5 w-2.5" aria-hidden /> Sắp đạt
                     </span>
                   )}
-                  <span className="absolute top-2 left-2 text-[10px] font-bold text-muted-foreground/70" aria-hidden>
+                  <span className="absolute top-2 left-2 text-[11px] font-bold text-muted-foreground/70" aria-hidden>
                     {CATEGORY_LABEL[a.category] ?? a.category}
                   </span>
                 </div>

@@ -136,7 +136,7 @@ export function ProfileView() {
           className="rounded-2xl border-2 border-primary/30 bg-gradient-to-r from-primary/[0.08] to-card p-4 mb-4 flex items-center gap-4"
         >
           <div className="relative h-14 w-14 shrink-0 rounded-2xl bg-primary text-primary-foreground flex flex-col items-center justify-center shadow-md shadow-primary/25">
-            <span className="text-[9px] font-bold uppercase tracking-wider opacity-80 leading-none">cấp</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider opacity-80 leading-none">cấp</span>
             <span className="text-xl font-extrabold leading-none tabular-nums">{overview.level.level}</span>
           </div>
           <div className="flex-1 min-w-0">
@@ -202,7 +202,7 @@ export function ProfileView() {
               style={{ bottom: `${Math.min(100, (goal / maxDaily) * 100)}%` }}
               aria-hidden
             >
-              <span className="absolute -top-4 right-0 text-[9px] font-bold text-warning/80 bg-card px-1 rounded">mục tiêu {goal}</span>
+              <span className="absolute -top-4 right-0 text-[11px] font-bold text-warning/80 bg-card px-1 rounded">mục tiêu {goal}</span>
             </div>
             <div className="flex items-end gap-[3px] h-full">
               {daily.map((d, i) => {
@@ -220,14 +220,14 @@ export function ProfileView() {
                     title={`${d.date}: ${d.xp} XP${d.xp >= goal ? ' — đạt mục tiêu' : ''}`}
                   >
                     {isToday && (
-                      <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-extrabold text-warning whitespace-nowrap">hôm nay</span>
+                      <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[11px] font-extrabold text-warning whitespace-nowrap">hôm nay</span>
                     )}
                   </div>
                 )
               })}
             </div>
           </div>
-          <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-semibold">
+          <div className="flex justify-between mt-2 text-[11px] text-muted-foreground font-semibold">
             <span>30 ngày trước</span>
             <span> TB {avgActive} XP/ngày học · {activeDays.length} ngày học</span>
             <span>hôm nay</span>
@@ -243,7 +243,7 @@ export function ProfileView() {
                 key={d.date}
                 title={`${d.date}: ${d.xp} XP${d.met ? ' — đạt mục tiêu' : ''}`}
                 className={cn(
-                  'aspect-square rounded-md flex items-center justify-center text-[9px] font-bold',
+                  'aspect-square rounded-md flex items-center justify-center text-[11px] font-bold',
                   d.met
                     ? 'bg-warning text-white'
                     : d.xp > 0
@@ -255,7 +255,7 @@ export function ProfileView() {
               </div>
             ))}
           </div>
-          <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground">
+          <div className="flex gap-4 mt-3 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-warning inline-block" /> Đạt mục tiêu</span>
             <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-warning/25 inline-block" /> Có học</span>
             <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-muted inline-block" /> Nghỉ</span>
@@ -347,11 +347,11 @@ export function ProfileView() {
                     </span>
                     <p className={cn('text-xs font-extrabold leading-tight', !a.unlocked && 'text-foreground')}>{a.title}</p>
                     {a.unlocked ? (
-                      <p className="text-[10px] font-bold mt-1 opacity-75">Đã mở khóa</p>
+                      <p className="text-[11px] font-bold mt-1 opacity-75">Đã mở khóa</p>
                     ) : (
                       <div className="mt-1.5">
                         <Progress value={pct} className="h-1.5" />
-                        <p className="text-[10px] font-bold mt-1 text-muted-foreground tabular-nums">{pct}%</p>
+                        <p className="text-[11px] font-bold mt-1 text-muted-foreground tabular-nums">{pct}%</p>
                       </div>
                     )}
                   </motion.div>
@@ -451,7 +451,7 @@ function WeeklyReportCard({ weekly, goal }: { weekly: WeeklyDTO; goal: number })
           const met = d.xp >= goal && d.xp > 0
           return (
             <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
-              <span className={cn('text-[9px] font-extrabold tabular-nums leading-none', d.xp > 0 ? 'text-foreground/70' : 'text-muted-foreground/40')}>
+              <span className={cn('text-[11px] font-extrabold tabular-nums leading-none', d.xp > 0 ? 'text-foreground/70' : 'text-muted-foreground/40')}>
                 {d.xp > 0 ? d.xp : ''}
               </span>
               <div className="w-full h-20 sm:h-24 rounded-lg bg-muted/60 relative flex items-end overflow-hidden">
@@ -468,7 +468,7 @@ function WeeklyReportCard({ weekly, goal }: { weekly: WeeklyDTO; goal: number })
                   <Flame className="absolute top-1 left-1/2 -translate-x-1/2 h-3 w-3 text-warning/90" aria-hidden />
                 )}
               </div>
-              <span className={cn('text-[10px] font-bold', isToday ? 'text-warning' : 'text-muted-foreground')}>
+              <span className={cn('text-[11px] font-bold', isToday ? 'text-warning' : 'text-muted-foreground')}>
                 {DAY_LABELS[i]}
               </span>
             </div>
@@ -530,7 +530,7 @@ function HeatmapCard({ heatmap, goal }: { heatmap: ProgressDTO['heatmap']; goal:
           <div className="grid grid-rows-8 gap-[3px] mr-1 shrink-0" aria-hidden>
             <span className="h-[10px] w-6 sm:h-3" />
             {DAY_LABELS.map((d, i) => (
-              <span key={d} className="h-[10px] sm:h-3 w-6 flex items-center text-[8px] font-bold text-muted-foreground/70">
+              <span key={d} className="h-[10px] sm:h-3 w-6 flex items-center text-[11px] font-bold text-muted-foreground/70">
                 {i % 2 === 0 ? d : ''}
               </span>
             ))}
@@ -538,7 +538,7 @@ function HeatmapCard({ heatmap, goal }: { heatmap: ProgressDTO['heatmap']; goal:
           {/* Lưới 17 cột tuần × 8 hàng (1 nhãn tháng + 7 ngày) */}
           <div className="grid grid-rows-8 grid-flow-col gap-[3px]">
             {monthLabels.map((m, i) => (
-              <span key={`m${i}`} className="h-[10px] sm:h-3 w-[10px] sm:w-3 text-[8px] font-bold text-muted-foreground/70 leading-none whitespace-nowrap">
+              <span key={`m${i}`} className="h-[10px] sm:h-3 w-[10px] sm:w-3 text-[11px] font-bold text-muted-foreground/70 leading-none whitespace-nowrap">
                 {m}
               </span>
             ))}
@@ -565,7 +565,7 @@ function HeatmapCard({ heatmap, goal }: { heatmap: ProgressDTO['heatmap']; goal:
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-2 mt-3 text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-2 mt-3 text-[11px] text-muted-foreground">
         <span className="font-semibold">Ít</span>
         <span className="h-2.5 w-2.5 rounded-[3px] bg-muted inline-block" />
         <span className="h-2.5 w-2.5 rounded-[3px] bg-primary/25 inline-block" />

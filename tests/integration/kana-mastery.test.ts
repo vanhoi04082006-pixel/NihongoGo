@@ -15,14 +15,35 @@
  * - settings: kanaMasteryTarget 3..50 hợp lệ, ngoài khoảng → 400
  */
 import { execSync } from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 
 // ── Database riêng cho test — PHẢI set trước khi import bất kỳ module DB nào ──
+//
+// Schema dùng provider `postgresql` (production Neon) nên cần `TEST_DATABASE_URL`
+// trỏ tới database Postgres RIÊNG. Không có biến này ⇒ skip suite (xem file
+// api.test.ts để biết chi tiết). Còn SQLite thì dùng file tạm như trước.
 const TMP_DIR = join(import.meta.dir, '..', '.tmp')
 const DB_FILE = join(TMP_DIR, 'kana-mastery.db')
-process.env.DATABASE_URL = `file:${DB_FILE}`
+const TEST_DB_URL = process.env.TEST_DATABASE_URL
+const USING_SQLITE = !TEST_DB_URL
+
+const SCHEMA_PROVIDER = (readFileSync(join(import.meta.dir, '..', '..', 'prisma', 'schema.prisma'), 'utf8')
+  .match(/provider\s*=\s*"(\w+)"/)?.[1] ?? 'postgresql')
+
+const SUITE_SKIPPED = SCHEMA_PROVIDER === 'postgresql' && !TEST_DB_URL
+if (!SUITE_SKIPPED) {
+  process.env.DATABASE_URL = USING_SQLITE ? `file:${DB_FILE}` : TEST_DB_URL!
+} else {
+  console.warn(
+    '\n⚠ SKIP tests/integration/kana-mastery: schema dùng "postgresql" nhưng thiếu TEST_DATABASE_URL.\n' +
+      '  Đặt TEST_DATABASE_URL trỏ tới database Postgres RIÊNG cho test (không dùng DB production).\n',
+  )
+}
+
+/** Suite chỉ chạy khi có DB test hợp lệ. */
+const describeIfDb = SUITE_SKIPPED ? describe.skip : describe
 
 type AnyRecord = Record<string, any>
 
@@ -81,11 +102,14 @@ async function findCorrectOption(q: AnyRecord, setType: string): Promise<{ optio
 }
 
 beforeAll(async () => {
-  rmSync(DB_FILE, { force: true })
-  mkdirSync(TMP_DIR, { recursive: true })
-  execSync('bunx prisma db push --skip-generate --accept-data-loss', {
+  if (SUITE_SKIPPED) return
+  if (USING_SQLITE) {
+    rmSync(DB_FILE, { force: true })
+    mkdirSync(TMP_DIR, { recursive: true })
+  }
+  execSync('bunx prisma db push --skip-generate --accept-data-loss --force-reset', {
     cwd: join(import.meta.dir, '..', '..'),
-    env: { ...process.env, DATABASE_URL: `file:${DB_FILE}` },
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL! },
     stdio: 'pipe',
   })
   execSync('bun prisma/seed.ts', {
@@ -110,7 +134,7 @@ afterAll(async () => {
   await db?.$disconnect?.()
 })
 
-describe('Kana practice — start không lộ đáp án', () => {
+describeIfDb('Kana practice — start không lộ đáp án', () => {
   test('RECOGNIZE: đủ 10 câu × 4 option, shape chặt, không có trường đáp án', async () => {
     const token = await registerUser('kana_t1@test.vn', 'kana_tester1')
     const res = await startPost(
@@ -180,7 +204,7 @@ describe('Kana practice — start không lộ đáp án', () => {
   })
 })
 
-describe('Kana practice — answer & progress', () => {
+describeIfDb('Kana practice — answer & progress', () => {
   test('answer ĐÚNG → correctCount tăng 1, chưa completed (target 10)', async () => {
     const token = await registerUser('kana_t3@test.vn', 'kana_tester3')
     const start = await json(await startPost(
@@ -338,7 +362,7 @@ describe('Kana practice — answer & progress', () => {
   })
 })
 
-describe('Kana mastery — bảo mật', () => {
+describeIfDb('Kana mastery — bảo mật', () => {
   test('chưa đăng nhập: progress/start/answer → 401', async () => {
     const p = await progressGet(req('/api/kana/progress'))
     expect(p.status).toBe(401)
@@ -384,7 +408,7 @@ describe('Kana mastery — bảo mật', () => {
   })
 })
 
-describe('Settings — kanaMasteryTarget', () => {
+describeIfDb('Settings — kanaMasteryTarget', () => {
   test('3..50 hợp lệ; 2 và 51 bị từ chối; GET trả đúng giá trị', async () => {
     const token = await registerUser('kana_t9@test.vn', 'kana_tester9')
     const okRes = await settingsPatch(

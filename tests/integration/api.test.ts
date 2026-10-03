@@ -15,15 +15,41 @@
  * - Optimistic lock: updateMany với state cũ không ghi được (0 dòng)
  */
 import { execSync } from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 
 // ── Database riêng cho test — PHẢI set trước khi import bất kỳ module DB nào ──
+//
+// Schema đang dùng provider `postgresql` (production Neon). Test integration từng
+// tự tạo DB sạch: với Postgres không thể "rm file" nên cần một database riêng.
+// - Có `TEST_DATABASE_URL` → dùng database đó (KHÔNG được trỏ vào DB production).
+// - Không có              → skip toàn bộ suite, in hướng dẫn.
+//
+// Còn SQLite thì dùng file tạm trong tests/.tmp như trước.
 const TMP_DIR = join(import.meta.dir, '..', '.tmp')
 const DB_FILE = join(TMP_DIR, 'integration.db')
-process.env.DATABASE_URL = `file:${DB_FILE}`
+const TEST_DB_URL = process.env.TEST_DATABASE_URL
+const USING_SQLITE = !TEST_DB_URL
 
+const SCHEMA_PROVIDER = (readFileSync(join(import.meta.dir, '..', '..', 'prisma', 'schema.prisma'), 'utf8')
+  .match(/provider\s*=\s*"(\w+)"/)?.[1] ?? 'postgresql')
+
+const SUITE_SKIPPED = SCHEMA_PROVIDER === 'postgresql' && !TEST_DB_URL
+if (!SUITE_SKIPPED) {
+  process.env.DATABASE_URL = USING_SQLITE ? `file:${DB_FILE}` : TEST_DB_URL!
+} else {
+  console.warn(
+    '\n⚠ SKIP tests/integration: schema dùng provider "postgresql" nhưng thiếu TEST_DATABASE_URL.\n' +
+      '  Đặt biến môi trường trỏ tới database Postgres RIÊNG cho test rồi chạy lại:\n' +
+      '    TEST_DATABASE_URL="postgresql://user:pass@host:5432/nihongogo_test?sslmode=require"\n' +
+      '  (Tuyệt đối không dùng database production.)\n' +
+      '  Unit test (tests/unit) vẫn chạy đầy đủ và không cần database.\n',
+  )
+}
+
+/** Suite chỉ chạy khi có DB test hợp lệ (xem SUITE_SKIPPED ở trên). */
+const describeIfDb = SUITE_SKIPPED ? describe.skip : describe
 
 type AnyRecord = Record<string, any>
 
@@ -54,17 +80,20 @@ async function json(res: Response): Promise<AnyRecord> {
 }
 
 beforeAll(async () => {
+  if (SUITE_SKIPPED) return
   // 1) DB sạch + schema + seed
-  rmSync(DB_FILE, { force: true })
-  mkdirSync(TMP_DIR, { recursive: true })
-  execSync('bunx prisma db push --skip-generate --accept-data-loss', {
+  if (USING_SQLITE) {
+    rmSync(DB_FILE, { force: true })
+    mkdirSync(TMP_DIR, { recursive: true })
+  }
+  execSync('bunx prisma db push --skip-generate --accept-data-loss --force-reset', {
     cwd: join(import.meta.dir, '..', '..'),
-    env: { ...process.env, DATABASE_URL: `file:${DB_FILE}` },
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL! },
     stdio: 'pipe',
   })
   execSync('bun prisma/seed.ts', {
     cwd: join(import.meta.dir, '..', '..'),
-    env: { ...process.env, DATABASE_URL: `file:${DB_FILE}` },
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL! },
     stdio: 'pipe',
   })
 
@@ -109,7 +138,7 @@ async function loginAdmin() {
 
 /* ---------------------------------- Tests ---------------------------------- */
 
-describe('Auth flow (HTTP handlers)', () => {
+describeIfDb('Auth flow (HTTP handlers)', () => {
   test('register tạo user + session cookie', async () => {
     const res = await registerPost(
       req('/api/auth/register', {
@@ -182,7 +211,7 @@ describe('Auth flow (HTTP handlers)', () => {
   })
 })
 
-describe('CSRF / origin protection', () => {
+describeIfDb('CSRF / origin protection', () => {
   test('POST với Origin lạ → 403 (blocked)', async () => {
     const res = await loginPost(
       req('/api/auth/login', {
@@ -232,7 +261,7 @@ describe('CSRF / origin protection', () => {
   })
 })
 
-describe('RBAC — admin API chỉ dành cho EDITOR/ADMIN', () => {
+describeIfDb('RBAC — admin API chỉ dành cho EDITOR/ADMIN', () => {
   test('USER gọi GET admin content → 403', async () => {
     const token = await loginDemo()
     const res = await adminContentGet(req('/api/admin/content?entity=lesson', { cookies: { ngg_session: token } }))
@@ -258,7 +287,7 @@ describe('RBAC — admin API chỉ dành cho EDITOR/ADMIN', () => {
   })
 })
 
-describe('Lesson flow (HTTP) — create + answer', () => {
+describeIfDb('Lesson flow (HTTP) — create + answer', () => {
   test('tạo phiên từ node thật + trả lời ĐÚNG (đáp án đọc từ DB) → correct', async () => {
     const token = await loginDemo()
     // Node PUBLISHED đầu tiên của bài 1
@@ -341,7 +370,7 @@ describe('Lesson flow (HTTP) — create + answer', () => {
   })
 })
 
-describe('XP pipeline + anti-cheat (service layer)', () => {
+describeIfDb('XP pipeline + anti-cheat (service layer)', () => {
   async function craftSession(opts: { startedAtMs: number; entries: number; mode?: string }): Promise<{ id: string; userId: string; answers: AnyRecord[] }> {
     const demo = await db.user.findUnique({ where: { email: 'demo@nihongogo.local' } })
     const answers: AnyRecord[] = []

@@ -282,7 +282,7 @@ function VocabCard({
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <AudioButton text={v.exampleJa || v.term} size="sm" labelSlow={false} />
           {v.srs && v.srs.status !== 'NEW' && (
-            <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', STATUS_BADGE[v.srs.status]?.cls)}>
+            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', STATUS_BADGE[v.srs.status]?.cls)}>
               {STATUS_BADGE[v.srs.status]?.label}
             </span>
           )}
@@ -295,7 +295,7 @@ function VocabCard({
         aria-label={`Xem chi tiết và tiến độ ghi nhớ của từ ${v.term}`}
       >
         <p className="text-sm font-medium leading-snug break-words">
-          {v.pos ? <Badge variant="secondary" className="mr-1.5 h-4.5 px-1.5 text-[10px]">{v.pos}</Badge> : null}
+          {v.pos ? <Badge variant="secondary" className="mr-1.5 h-4.5 px-1.5 text-[11px]">{v.pos}</Badge> : null}
           {v.meaningVi}
         </p>
       </button>

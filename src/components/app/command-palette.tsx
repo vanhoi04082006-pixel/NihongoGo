@@ -122,7 +122,7 @@ export function SearchTrigger({ onClick }: { onClick: () => void }) {
     >
       <Search className="h-4 w-4" aria-hidden />
       <span className="hidden md:inline">Tìm từ, kanji, ngữ pháp…</span>
-      <kbd className="pointer-events-none hidden sm:inline-flex h-6 select-none items-center gap-0.5 rounded-md border bg-background px-1.5 font-mono text-[10px] font-semibold text-muted-foreground">
+      <kbd className="pointer-events-none hidden sm:inline-flex h-6 select-none items-center gap-0.5 rounded-md border bg-background px-1.5 font-mono text-[11px] font-semibold text-muted-foreground">
         {isMac ? '⌘' : 'Ctrl'} K
       </kbd>
     </button>
@@ -229,10 +229,10 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
                           <span className="truncate text-sm">
                             <span className="text-muted-foreground">{v.reading ? `${v.reading} · ` : ''}</span>
                             <span className="font-semibold">{v.romaji}</span>
-                            {v.pos ? <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[10px]">{v.pos}</Badge> : null}
+                            {v.pos ? <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[11px]">{v.pos}</Badge> : null}
                           </span>
                           <span className="truncate text-xs text-muted-foreground">{v.meaningVi}</span>
-                          {v.lesson ? <span className="truncate text-[10px] text-muted-foreground/70">↳ {v.lesson.title}</span> : null}
+                          {v.lesson ? <span className="truncate text-[11px] text-muted-foreground/70">↳ {v.lesson.title}</span> : null}
                         </span>
                         <button
                           type="button"
@@ -272,8 +272,8 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
                             </span>
                           </span>
                           <span className="flex shrink-0 items-center gap-1">
-                            <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-bold">N{k.jlpt}</Badge>
-                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{k.strokeCount} nét</Badge>
+                            <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-bold">N{k.jlpt}</Badge>
+                            <Badge variant="secondary" className="h-5 px-1.5 text-[11px]">{k.strokeCount} nét</Badge>
                           </span>
                         </CommandItem>
                       ))}
@@ -325,7 +325,7 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
                               <span className="jp">{k.exampleWord}</span> — {k.exampleMeaning}
                             </span>
                           </span>
-                          <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-bold">
+                          <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-bold">
                             {k.type === 'HIRAGANA' ? 'Hira' : 'Kata'}
                           </Badge>
                         </CommandItem>

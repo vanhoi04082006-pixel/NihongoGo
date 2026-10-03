@@ -74,13 +74,13 @@ export function SrsStatsGrid({ srs }: { srs: SrsStatusInfo }) {
     <div className="grid grid-cols-3 gap-2 text-center">
       <div className="rounded-xl bg-muted/50 px-2 py-1.5">
         <p className="text-sm font-extrabold tabular-nums">{srs.reviewCount}</p>
-        <p className="text-[10px] font-bold text-muted-foreground flex items-center justify-center gap-0.5">
+        <p className="text-[11px] font-bold text-muted-foreground flex items-center justify-center gap-0.5">
           <Repeat className="h-2.5 w-2.5" aria-hidden /> lần ôn
         </p>
       </div>
       <div className="rounded-xl bg-muted/50 px-2 py-1.5">
         <p className="text-sm font-extrabold tabular-nums">{srs.lapseCount}</p>
-        <p className="text-[10px] font-bold text-muted-foreground flex items-center justify-center gap-0.5">
+        <p className="text-[11px] font-bold text-muted-foreground flex items-center justify-center gap-0.5">
           <Zap className="h-2.5 w-2.5" aria-hidden /> lần quên
         </p>
       </div>
@@ -88,7 +88,7 @@ export function SrsStatsGrid({ srs }: { srs: SrsStatusInfo }) {
         <p className="text-sm font-extrabold tabular-nums leading-5">
           {srs.nextReviewAt ? nextReviewLabel(srs.nextReviewAt) : '—'}
         </p>
-        <p className="text-[10px] font-bold text-muted-foreground flex items-center justify-center gap-0.5">
+        <p className="text-[11px] font-bold text-muted-foreground flex items-center justify-center gap-0.5">
           <CalendarClock className="h-2.5 w-2.5" aria-hidden /> ôn kế tiếp
         </p>
       </div>

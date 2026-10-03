@@ -62,7 +62,7 @@ export function QuestsView() {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-xl font-extrabold tabular-nums leading-none">{completed}/{quests.length}</span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">nhiệm vụ</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">nhiệm vụ</span>
               </div>
             </div>
             <div className="flex-1 min-w-0">

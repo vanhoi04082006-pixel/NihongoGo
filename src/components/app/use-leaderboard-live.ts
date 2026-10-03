@@ -6,10 +6,25 @@ import { io, type Socket } from 'socket.io-client'
 /**
  * Realtime (live) leaderboard hook.
  *
- * Kết nối socket.io mini-service `leaderboard-live` (port 3004) QUA GATEWAY CADDY:
- * URL RELATIVE, port CHỈ nằm trong query param XTransformPort — tuyệt đối không
- * viết `http://localhost:3004`. Path phải là '/' để Caddy forward đúng cổng.
+ * Kết nối socket.io mini-service `leaderboard-live` (port 3004).
+ *
+ * BA CHẾ ĐỘ (quyết định bằng biến môi trường `NEXT_PUBLIC_LIVE_WS`):
+ *   1. CÓ proxy (Caddy) — URL relative, port trong query `XTransformPort`:
+ *      `io('/?XTransformPort=3004')`, path phải là '/' để gateway forward đúng cổng.
+ *   2. KHÔNG proxy (dev chạy thẳng `next dev` trên :3000) — trỏ thẳng
+ *      `http://localhost:3004`, vì Caddy không có để forward.
+ *   3. KHÔNG có mini-service (deploy serverless như Vercel) — KHÔNG kết nối.
+ *
+ * VÌ SAO CẦN CHẾ ĐỘ 3:
+ *   socket.io là kết nối WebSocket dài hạn. Nền tảng serverless (Vercel) không
+ *   chạy được tiến trình socket.io riêng, nên mọi lần thử đều fail và spam
+ *   console error — dù tính năng đã có fallback polling 45s và vẫn chạy bình
+ *   thường. Không có env var ⇒ coi như không có realtime, đừng thử kết nối.
+ *   ⇒ đặt NEXT_PUBLIC_LIVE_WS chỉ khi deploy có thật sự chạy mini-service.
  */
+const LIVE_WS_URL: string | null =
+  process.env.NEXT_PUBLIC_LIVE_WS ??
+  (process.env.NODE_ENV === 'production' ? null : 'http://localhost:3004')
 
 export interface LiveGain {
   userId: string
@@ -72,12 +87,17 @@ export function useLeaderboardLive(): {
   const [session, setSession] = useState(0)
 
   useEffect(() => {
-    // Không dùng forceNew để tận dụng reconnect; URL relative theo origin trang.
-    const socket: Socket = io('/?XTransformPort=3004', {
-      // DO NOT change the path, it is used by Caddy to forward to the correct port
+    // Không có mini-service (deploy serverless) → không kết nối, để view dùng
+    // polling 45s. Tránh spam console error từ WebSocket handshake thất bại.
+    if (!LIVE_WS_URL) return
+
+    // Không dùng forceNew để tận dụng reconnect của socket.io.
+    const isRelative = LIVE_WS_URL.startsWith('/')
+    const socket: Socket = io(LIVE_WS_URL, {
+      // Khi qua Caddy, path phải là '/' để gateway forward đúng cổng.
       path: '/',
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
+      reconnectionAttempts: isRelative ? 5 : 2,
       reconnectionDelay: 3000,
     })
 

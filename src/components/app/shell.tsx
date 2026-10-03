@@ -12,6 +12,7 @@ import { useOverview } from './use-overview'
 import { LogoFull } from './logo'
 import { StreakBadge, HeartsBadge, XPBadge, AvatarBubble, LoadingBlock } from '@/components/shared/widgets'
 import { DynamicIcon } from '@/components/shared/icon'
+import { JapaneseVoiceNotice } from '@/components/shared/japanese-voice-notice'
 import { setSfxEnabled, sfx } from '@/lib/sounds'
 import { CommandPalette, SearchTrigger, useCommandPalette } from './command-palette'
 import {
@@ -350,7 +351,7 @@ export function BottomNav() {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                'flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg m-1',
+                'flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg m-1',
                 active ? 'text-primary' : 'text-muted-foreground'
               )}
               aria-current={active ? 'page' : undefined}
@@ -399,6 +400,8 @@ export function AppShell({ children, wide }: { children: React.ReactNode; wide?:
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar onOpenSearch={() => setOpen(true)} />
         <main className={cn('flex-1 w-full mx-auto px-3 sm:px-6 py-6 pb-20 lg:pb-6', wide ? 'max-w-6xl' : 'max-w-4xl')}>
+          {/* Không có giọng đọc tiếng Nhật → bài nghe/nói im lặng. Báo rõ ngay ở mọi màn hình. */}
+          <JapaneseVoiceNotice className="mb-5" />
           {children}
         </main>
         <div className="hidden lg:block w-full">

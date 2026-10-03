@@ -428,7 +428,7 @@ function LessonForm({
         <div>
           <h1 className="text-lg font-extrabold flex items-center gap-2">
             Bài {lesson.order}: {lesson.title}
-            <span className={cn('text-[10px] font-bold rounded-full px-2 py-0.5', lesson.status === 'PUBLISHED' ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning')}>
+            <span className={cn('text-[11px] font-bold rounded-full px-2 py-0.5', lesson.status === 'PUBLISHED' ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning')}>
               {lesson.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Nháp'}
             </span>
           </h1>
@@ -569,7 +569,7 @@ function NodeEditor({ nodeId, onBack, isAdmin }: { nodeId: string; onBack: () =>
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-xs font-bold tabular-nums text-muted-foreground">#{ex.order}</span>
                   <span className="font-mono text-xs font-bold text-primary truncate">{ex.type}</span>
-                  {ex.status !== 'PUBLISHED' && <span className="text-[10px] font-bold rounded-full bg-warning/15 text-warning px-2 py-0.5">{ex.status}</span>}
+                  {ex.status !== 'PUBLISHED' && <span className="text-[11px] font-bold rounded-full bg-warning/15 text-warning px-2 py-0.5">{ex.status}</span>}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Button size="sm" variant="ghost" onClick={() => setPreview(preview ? null : (ex.questions ?? []))}>
@@ -607,7 +607,7 @@ function QuestionCard({ question: q }: { question: Row }) {
         {open ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
         <span className="font-mono text-[11px] text-muted-foreground shrink-0">{q.type}</span>
         <span className="text-xs truncate flex-1">{describeQuestion(q)}</span>
-        <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0', q.itemRefKey ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
+        <span className={cn('text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0', q.itemRefKey ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
           {q.itemRefKey ? `${q.itemRefType}:${q.itemRefKey}` : '—'}
         </span>
       </button>
@@ -1320,7 +1320,7 @@ function AuditSection() {
           {data.logs.map((l) => (
             <div key={l.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0 text-sm">
               <span className={cn(
-                'text-[10px] font-bold rounded-full px-2 py-0.5 shrink-0',
+                'text-[11px] font-bold rounded-full px-2 py-0.5 shrink-0',
                 l.action === 'DELETE' ? 'bg-destructive/10 text-destructive' : l.action === 'PUBLISH' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
               )}>
                 {l.action}

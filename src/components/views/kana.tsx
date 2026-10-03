@@ -334,7 +334,7 @@ function KanaCard({
               </span>
             ) : (
               progress && (
-                <span className="absolute -top-1.5 -right-0.5 text-[10px] font-extrabold tabular-nums text-muted-foreground bg-card border rounded-full px-1">
+                <span className="absolute -top-1.5 -right-0.5 text-[11px] font-extrabold tabular-nums text-muted-foreground bg-card border rounded-full px-1">
                   {correct}/{target}
                 </span>
               )
@@ -354,7 +354,7 @@ function KanaCard({
         <AudioButton text={c.character} size="sm" labelSlow={false} />
       </div>
       <p
-        className="text-[10px] text-muted-foreground mt-1.5 leading-tight"
+        className="text-[11px] text-muted-foreground mt-1.5 leading-tight"
         title={`${c.exampleWord} — ${c.exampleMeaning}`}
       >
         <span className="jp font-semibold">{c.exampleWord}</span> · {c.exampleMeaning}
@@ -724,7 +724,7 @@ function PracticeDialog({
                       feedback && !isCorrectOption && !isWrongChosen && 'border-border opacity-50'
                     )}
                   >
-                    <span className="absolute top-1.5 right-2 text-[10px] font-extrabold text-muted-foreground" aria-hidden>
+                    <span className="absolute top-1.5 right-2 text-[11px] font-extrabold text-muted-foreground" aria-hidden>
                       {i + 1}
                     </span>
                     {o.text}
@@ -853,7 +853,7 @@ function StatPill({ label, value, className }: { label: string; value: string | 
   return (
     <div className="rounded-xl border bg-card p-2.5">
       <p className={cn('text-lg font-extrabold tabular-nums', className)}>{value}</p>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   )
 }

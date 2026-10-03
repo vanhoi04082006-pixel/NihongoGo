@@ -166,7 +166,7 @@ export function LessonDetailView({ lessonId }: { lessonId: string }) {
                 <div className="min-w-0">
                   <p className="jp jp-serif font-bold text-lg leading-tight">
                     {v.term}
-                    {v.pos && <span className="text-[10px] ml-2 font-semibold rounded bg-muted px-1.5 py-0.5 text-muted-foreground align-middle">{v.pos}</span>}
+                    {v.pos && <span className="text-[11px] ml-2 font-semibold rounded bg-muted px-1.5 py-0.5 text-muted-foreground align-middle">{v.pos}</span>}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {v.reading ? `${v.reading} · ` : ''}{v.romaji}

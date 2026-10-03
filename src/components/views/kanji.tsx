@@ -239,8 +239,8 @@ export function KanjiView({ character }: { character: string | null }) {
               <p className="jp jp-serif text-4xl font-bold leading-none mb-1.5">{k.character}</p>
               <p className="text-xs font-semibold text-muted-foreground line-clamp-2 leading-tight min-h-8">{k.meaningVi}</p>
               <div className="flex items-center justify-center gap-1 mt-1.5">
-                <Badge variant="secondary" className="text-[10px] px-1.5">N{k.jlpt}</Badge>
-                <span className="text-[10px] text-muted-foreground">{k.strokeCount} nét</span>
+                <Badge variant="secondary" className="text-[11px] px-1.5">N{k.jlpt}</Badge>
+                <span className="text-[11px] text-muted-foreground">{k.strokeCount} nét</span>
               </div>
               {/* Mastery dots — tiến độ nhớ từng chữ (0–5) */}
               <div className="mt-1.5 flex items-center justify-center gap-0.5" aria-hidden>
@@ -314,7 +314,7 @@ function KanjiWritingSection({ kanji }: { kanji: KanjiDTO }) {
             >
               <PenLine className="h-4 w-4" aria-hidden />
               {showGuide ? 'Ẩn hướng dẫn viết' : `Xem hướng dẫn viết ${kanji.character}`}
-              <span className="text-[10px] font-semibold text-muted-foreground" aria-hidden>
+              <span className="text-[11px] font-semibold text-muted-foreground" aria-hidden>
                 ({kanji.strokeCount} nét)
               </span>
             </button>
@@ -589,7 +589,7 @@ function KanjiPracticeDialog({
                       feedback && !isCorrectOption && !isWrongChosen && 'border-border opacity-50',
                     )}
                   >
-                    <span className="absolute top-1.5 right-2 text-[10px] font-extrabold text-muted-foreground" aria-hidden>
+                    <span className="absolute top-1.5 right-2 text-[11px] font-extrabold text-muted-foreground" aria-hidden>
                       {i + 1}
                     </span>
                     <span className="flex h-full items-center justify-center leading-tight break-words">{o.text}</span>
@@ -729,7 +729,7 @@ function StatPill({ label, value, className }: { label: string; value: string | 
   return (
     <div className="rounded-xl border bg-card p-2.5">
       <p className={cn('text-lg font-extrabold tabular-nums', className)}>{value}</p>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   )
 }

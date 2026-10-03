@@ -59,7 +59,6 @@ server.log
 /.cache/
 /.zscripts/
 /agent-ctx/
-/download/
 /upload/
 /db/*.db
 /db/*.db-journal
@@ -76,3 +75,10 @@ tests/.tmp/
 
 # DB backups local
 db/*.bak-*
+
+# QA artifacts (screenshot/audit)
+/qa/
+.vercel-secret.txt
+.vercel-db.txt
+prodshot.log
+

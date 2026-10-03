@@ -8,7 +8,7 @@ NihongoGo lấy cảm hứng từ các *pattern* học tập phổ biến (learn
 
 | Nhóm | Tính năng |
 |---|---|
-| **Học tập** | Learning path 52 bài (2 bài kana + 50 bài sơ cấp chia 7 phần), mỗi bài gồm nhiều ải nhỏ (từ vựng → ngữ pháp → nghe → đọc → nói → viết → mixed → Boss Quiz) |
+| **Học tập** | **70 bài** / 11 phần / 4.876 câu hỏi: `basic` — N5 52 bài (2 bài kana + 50 bài sơ cấp chia 7 phần) và `irodori-a1` — A1 18 bài (4 phần). Mỗi bài gồm nhiều ải nhỏ (từ vựng → ngữ pháp → nghe → đọc → nói → viết → mixed → Boss Quiz) |
 | **Lesson Engine** | 29 dạng bài tập (multiple choice, matching, word bank, sentence order, dịch 2 chiều, dictation, nghe, nói, viết tay canvas, đọc hiểu…), state machine phía server, chấm điểm server-side |
 | **Kana** | Bảng Hiragana & Katakana đầy đủ 208 ký tự (basic/dakuten/handakuten/youon) + luyện nhận diện, nghe, gõ romaji, viết tay |
 | **Kanji** | 40 chữ Hán N5 kèm âm On/Kun, bộ thủ, ví dụ, mẹo nhớ, luyện viết tay heuristic |
@@ -47,7 +47,7 @@ bun run dev
 # → http://localhost:3000
 ```
 
-**Lần chạy đầu tiên**, `bun run dev` tự động phát hiện database chưa có và tự khởi tạo (.env → Prisma Client → tạo schema → seed 52 bài học, mất ~1–2 phút), rồi mới khởi động server. Các lần sau bỏ qua bước này và khởi động ngay.
+**Lần chạy đầu tiên**, `bun run dev` tự động phát hiện database chưa có và tự khởi tạo (.env → Prisma Client → tạo schema → seed 70 bài học, mất ~1–2 phút), rồi mới khởi động server. Các lần sau bỏ qua bước này và khởi động ngay.
 
 Nếu muốn khởi tạo thủ công (không chạy dev):
 
@@ -55,7 +55,7 @@ Nếu muốn khởi tạo thủ công (không chạy dev):
 bun run setup
 ```
 
-`bun run setup` tự động: tạo `.env` từ `.env.example` (giữ nguyên `.env` nếu đã có), tạo thư mục `db/`, chạy `prisma generate` + `prisma db push`, seed toàn bộ nội dung học (52 bài, ~3.283 câu hỏi, 876 từ vựng, 137 ngữ pháp, 119 kanji, 208 kana, achievements, quests, users mẫu).
+`bun run setup` tự động: tạo `.env` từ `.env.example` (giữ nguyên `.env` nếu đã có), tạo thư mục `db/`, chạy `prisma generate` + `prisma db push`, seed toàn bộ nội dung học (70 bài, 4.876 câu hỏi, 190 điểm ngữ pháp, 208 kana, 119 kanji, 26 achievement, 8 quest, 10 users mẫu).
 
 ### Cài đặt thủ công (từng bước)
 
@@ -96,7 +96,7 @@ bun run dev
 | `bun run lint` | ESLint |
 | `bun test` | Test suite (unit + integration — integration tự setup SQLite riêng trong `tests/.tmp`, không đụng DB dev) |
 | `bun run test:e2e` | E2E Playwright: đăng ký → đăng nhập → học bài → test-out → unlock (`tests/e2e/`) |
-| `bun run seed` | Alias của db:seed — seed toàn bộ (N5 52 bài + Irodori A1 12 bài) |
+| `bun run seed` | Alias của db:seed — seed toàn bộ (N5 52 bài + Irodori A1 18 bài) |
 | `bun run seed:irodori` | Chỉ seed/patch khoá Irodori A1 (idempotent) |
 | `bun run audit:content` | Audit DB content: số liệu thật + question quality theo type + exercise 0 câu + orphan (exit 1 nếu ERROR) |
 | `bun run db:push` | Đẩy schema Prisma xuống database |
@@ -178,9 +178,11 @@ docs/ARCHITECTURE.md
 
 - **Chấm phát âm** là text-similarity giữa kết quả ASR và câu mẫu (đã ghi rõ trong UI) — chưa phải đánh giá âm vị học.
 - **Chấm viết tay** là heuristic (50% số nét + 50% độ phủ hình dạng) — đã ghi rõ trong UI.
-- ~~Bài 4–50 là skeleton~~ → **ĐÃ HOÀN THIỆN (30/09/2026)**: toàn bộ 47 bài có nội dung gốc đầy đủ (58–61 câu/bài, 13–16 dạng tương tác, node BOSS) — xem `docs/content/CONTENT_COVERAGE.md`.
+- ~~Bài 4–50 là skeleton~~ → **ĐÃ HOÀN THIỆN (30/09/2026)**: toàn bộ 47 bài có nội dung gốc đầy đủ — xem `docs/content/CONTENT_COVERAGE.md`.
 - Rate-limit dùng bộ nhớ trong (single-instance). Nếu scale nhiều instance → chuyển Redis.
-- Chưa có bộ test tự động (theo ràng buộc môi trường phát triển hiện tại); QA bằng kịch bản E2E thủ công qua trình duyệt.
+- **Kho dữ liệu dev là SQLite**; chuyển PostgreSQL đã được viết tài liệu (`docs/DEPLOYMENT_FREE.md`) nhưng **chưa từng diễn tập** trên môi trường thật.
+- **Nội dung MACHINE_REVIEWED, chưa HUMAN_REVIEWED** — cần người bản xứ rà soát trước khi thương mại hóa.
+- 94 hội thoại của khoá N5 đã biên soạn + validate nhưng generator chưa dùng (node `READING` sinh từ `reading`); khoá Irodori thì có dùng `DIALOGUE`.
 
 ## Bản quyền nội dung
 
